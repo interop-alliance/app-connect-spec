@@ -26,7 +26,9 @@ needs -- an identity of its own, and permission to write into a corner of the
 user's storage -- and then talks to the storage server directly.
 
 The whole negotiation is **one exchange**. The application opens a single
-[=CHAPI=] `get` carrying a verifiable presentation request [[VCALM]] with one
+[=CHAPI=] `get` -- the in-browser transport; non-browser applications use
+another [[VCALM]]-capable protocol ([[[#request-transport]]]) -- carrying a
+verifiable presentation request [[VCALM]] with one
 [=AppConnectQuery=] in it. The wallet answers, in the same round, with one
 signed Verifiable Presentation carrying:
 
@@ -101,7 +103,7 @@ anything an application sees.
 | [[WAS]] | Defines the Space / Collection / Resource model, the HTTP API, and the capability authorization profile whose delegations this profile produces. |
 | [[WAS-EC]] | Companion profile (draft). Defines the encrypted-collection construction: key epochs, roster recipients, envelope format, and the derivation of a recipient key from a controller DID. This profile defers to it for the recipient-key derivation ([[[#recipient-derivation]]]), the key-agreement half of the application's key material ([[[#key-derivation]]]), the epoch rotation behind forward-only re-grants ([[[#descriptor-shared-collection]]]), and the definition of [=epoch-roster recipient=] itself. |
 | [[VCALM]] | Defines verifiable presentation requests and their query types: the request body that carries an [=AppConnectQuery=], the `DIDAuthentication` and `QueryByExample` query types this profile interacts with, and `AuthorizationCapabilityQuery`, the standalone capability-request query type whose entry shape [=AppConnectQuery=] reuses. |
-| [[CHAPI]] | The transport this profile is defined over: it supplies the browser-attested requesting origin the [=app-key credential=] is bound to. |
+| [[CHAPI]] | The transport for in-browser applications, and the one this profile's normative prose is written against: it supplies the browser-attested requesting origin the [=app-key credential=] is bound to. Non-browser applications carry the same [[VCALM]] request over other transports ([[[#request-transport]]]). |
 | [[DID-WEBVH]] | The log format the [=resource log=] profile ([[[#resource-log-profile]]]) is extracted from, and one method a Space controller's [=controller document=] may be verified under. Nothing outside that profile depends on it. |
 
 ### Conformance Classes {#conformance-classes}
@@ -148,7 +150,7 @@ see the [=CHAPI=] exchange, the request, the response presentation, the
 invocations arriving on its HTTP API, which it authorizes exactly as [[WAS]]
 already specifies. No server-side support is required to deploy App Connect,
 and a server cannot tell an App Connect grant from any other delegated
-capability. This is a design goal, not an accident: it keeps the exchange a
+capability. This is a design goal; it keeps the exchange a
 matter between the user's wallet and the application, and it keeps the storage
 provider substitutable. The one exception is the [=resource log=] profile,
 which requires the backend holding the log to support [[WAS]]'s optional
@@ -170,8 +172,8 @@ This subsection is non-normative. It collects conventions the rest of the
 document relies on.
 
 **All examples share one setting.** The application is "Example Notes", served
-from the origin `https://app.example`, and its [=app-key credential=] type is
-`ExampleNotesUser` under the vocabulary base `https://app.example/vocab#`. The
+from the origin `https://app.example` under the application URL
+`https://app.example/notes/`. The
 user's wallet Space is `81246131-69a4-45ab-9bff-9c946b59cf2e` on the host
 `wallet-storage.example`, so its Space URL is
 `https://wallet-storage.example/space/81246131-69a4-45ab-9bff-9c946b59cf2e`.
@@ -182,7 +184,7 @@ DID and key values in examples are illustrative and are not real derivations.
 members are themselves under discussion.
 
 **"Byte-significant" means what it says.** Several strings in this document --
-type names, term IRIs, the key-derivation label, the collection-name grammar
+type names, term URLs, the key-derivation label, the collection-name grammar
 -- are inputs to a derivation or to a canonicalized signature. Changing one
 does not produce a variant profile; it produces an incompatible one, and for
 the derivation inputs it orphans every identity already derived under the old
@@ -196,21 +198,24 @@ value.
   <dd>See <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#authorization-actions-and-the-root-capability">Authorization
     Actions and the Root Capability</a> in [[WAS]]. The kind of operation a
     request performs on a [=target=],
-    named by a [=capability=] so it can be authorized. This profile bounds the
-    actions a [=grant=] may carry to a closed vocabulary of uppercase HTTP
+    named by a [=capability=] so it can be authorized. This profile restricts
+    [=grants=] to a closed vocabulary of uppercase HTTP
     method names; see [[[#action-vocabulary]]].</dd>
 
   <dt><dfn data-lt="applications|requesting party">application</dfn></dt>
-  <dd>A web application that connects to a user's [=wallet=] through an App
-    Connect exchange in order to obtain its own identity and delegated access
-    to the user's storage. One of the two conformance classes; see
+  <dd>An application -- typically a web application, though non-browser
+    applications participate over other transports ([[[#request-transport]]]) --
+    that connects to a user's [=wallet=] through an App
+    Connect exchange to receive delegated access to the user's storage,
+    along with the per-user [=app-key credential=] that the delegation
+    targets. One of the two conformance classes; see
     [[[#conformance-classes]]]. An application is identified to the wallet by
     its browser-attested [=origin=] and by the <code>app</code> block of its
     [=AppConnectQuery=].</dd>
 
   <dt><dfn data-lt="AppConnectQuery|app connect query">App Connect query
     (AppConnectQuery)</dfn></dt>
-  <dd>The verifiable presentation request query type this profile defines,
+  <dd>A Verifiable Presentation Request query type this profile defines,
     extending the query types of [[VCALM]]: it names the requesting
     [=application=] and carries the capability requests to be delegated to that
     application's [=app-key credential=] subject. See [[[#request]]].</dd>
@@ -227,13 +232,14 @@ value.
   <dd>A self-issued Verifiable Credential [[VC-DATA-MODEL]] carrying an
     application's 32-byte [=seed=], whose issuer and subject are both the
     [=connecting DID=] derived from that seed, and which is bound to the
-    application's [=origin=]. It is held in the user's wallet, and is what
+    application's [=origin=] and application URL
+    (<code>appUrl</code>). It is held in the user's wallet, and is what
     makes an application's identity portable across the user's browsers without
     the application holding any durable secret of its own. See
     [[[#app-key-credential]]].</dd>
 
   <dt><dfn data-lt="capability|capabilities|zcap|zCap">capability (zCap)</dfn></dt>
-  <dd>An object capability authorizing a set of [=actions=] on a [=target=].
+  <dd>An authorization capability authorizing a set of [=actions=] on a [=target=].
     See the <a
     href="https://interop-alliance.github.io/zcap-developer-guide/">zCap
     Developer Guide</a> and [[ZCAP]] for the model, and [[WAS]] for the storage
@@ -241,9 +247,11 @@ value.
 
   <dt><dfn data-lt="CHAPI">Credential Handler API (CHAPI)</dfn></dt>
   <dd>The browser-mediated transport over which an App Connect exchange is
-    carried [[CHAPI]]. Its relevant property here is that it attests the
-    requesting [=origin=] to the wallet: the wallet learns which origin opened
-    the request from the mediator, not from the request body.</dd>
+    carried when the [=application=] runs in a browser [[CHAPI]]. Its relevant
+    property here is that it attests the requesting [=origin=] to the wallet:
+    the wallet learns which origin opened the request from the mediator, not
+    from the request body. Non-browser applications carry the same exchange
+    over other transports; see [[[#request-transport]]].</dd>
 
   <dt><dfn data-lt="collections|Collection">collection</dfn></dt>
   <dd>See <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#collections">Collections</a>
@@ -339,11 +347,34 @@ value.
 
 ## The App Connect Request {#request}
 
-### Carriage {#request-carriage}
+### Transport {#request-transport}
 
 An App Connect request is a verifiable presentation request [[VCALM]] whose
-`query` member contains exactly one [=AppConnectQuery=]. The request is
-delivered to the wallet over [=CHAPI=].
+`query` member contains exactly one [=AppConnectQuery=].
+
+For an [=application=] running in a web browser, the request is delivered to
+the wallet over [=CHAPI=]. CHAPI is a browser API, so it applies only to
+in-browser applications; it is also the deployment this document's normative
+prose is written against.
+
+<div class="note">
+**CHAPI is the in-browser transport mechanism, not the profile.** The request and
+response are plain [[VCALM]] bodies -- a verifiable presentation request in,
+a signed verifiable presentation out -- and carry nothing CHAPI-specific. An
+application that does not run in a browser (a native mobile application, or a
+command-line tool) delivers the same request over another protocol capable of
+carrying a [[VCALM]] exchange, such as VCALM's own exchange endpoints, and
+receives the same response presentation back.
+
+What any such transport must replicate is CHAPI's one load-bearing property:
+attesting the identity of the requesting party to the wallet
+([[[#security-origin]]]). Wherever this document relies on the
+browser-attested [=origin=], a non-browser transport must supply an
+equivalently attested application identifier -- attested by the transport or
+platform, not asserted in the request body -- for the wallet to bind the
+[=app-key credential=] to. How a given non-browser transport attests its
+caller is out of scope for this document.
+</div>
 
 The request body MUST carry `challenge` and `domain` members
 ([[[#challenge-and-domain]]]).
@@ -357,33 +388,42 @@ evidence of who is asking.
 
 An [=AppConnectQuery=] is a JSON object with the following members.
 
-| Member | Required | Value |
-|--------|----------|-------|
-| `type` | yes | The string `AppConnectQuery`. |
-| `app` | yes | An object naming the requesting application; see below. |
-| `capabilityQuery` | no | A capability request entry, or an array of them; see [[[#capability-query]]]. |
+| Member            | Required | Value                                                                         |
+|-------------------|----------|-------------------------------------------------------------------------------|
+| `type`            | yes      | The string `AppConnectQuery`.                                                 |
+| `app`             | yes      | An object naming the requesting application; see below.                       |
+| `capabilityQuery` | no       | A capability request entry, or an array of them; see [[[#capability-query]]]. |
 
-The `app` object has exactly three members, and a [=wallet=] MUST treat the
-query as malformed unless all three are present and are strings:
+The `app` object has exactly two members, and a [=wallet=] MUST treat the
+query as malformed unless both are present and are strings:
 
-| Member | Value |
-|--------|-------|
-| `name` | A human-readable application name, for the wallet's consent surface. Display only; it is attacker-controlled free text and MUST NOT be treated as evidence of identity. |
-| `credentialType` | The application's own [=app-key credential=] type name, used to match an existing credential or to mint a new one. See [[[#app-key-type-array]]]. |
-| `vocabBase` | The vocabulary base IRI under which the application's own type term is minted. See [[[#app-key-context]]]. |
+| Member   | Value                                                                                                                                                                  |
+|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`   | A human-readable application name, for the wallet's consent surface. Display only; it is attacker-controlled free text and MUST NOT be treated as evidence of identity. |
+| `appUrl` | The application's canonical URL, identifying it among the applications on its origin. Used to match an existing [=app-key credential=] or to mint a new one ([[[#app-key-matching]]]). |
 
-An [=application=] MUST NOT use the empty string, `VerifiableCredential`, or
-`AppKeyCredential` as its `credentialType`. A [=wallet=] SHOULD treat a query
-naming one of these as malformed.
+The `appUrl` value MUST parse as an absolute URL [[URL]], MUST NOT carry a
+fragment, and its origin MUST equal the attested requesting [=origin=]. A
+[=wallet=] MUST treat a query violating any of these as malformed. Wherever
+this document stores or compares an `appUrl`, the value used is the parsed
+URL's serialization, so spellings that differ only in a default port, in
+percent-encoding case, or in dot-segments do not name distinct applications.
 
 <div class="note">
-The application's own type term is the one term the inline credential context
-mints under `vocabBase` ([[[#app-key-context]]]). A `credentialType` of
-`AppKeyCredential` would therefore redefine the marker term to
-`<vocabBase>AppKeyCredential`, defeating the rule that the marker IRI is one
-stable IRI for every application and is never interpolated
-([[[#app-key-iris]]]). `VerifiableCredential` and the empty string collide with
-the base vocabulary in the same way.
+`appUrl` is what distinguishes multiple applications served from one origin:
+an application identity is scoped to the pair ([=origin=], `appUrl`), and
+applications sharing an origin use distinct URLs -- typically distinct paths.
+The same scoping means an application cannot hold more than one identity at
+one URL; a deployment that wants two identities is two applications, at two
+URLs. This mirrors how the Web App Manifest identifies an installable
+application: its `id` member is likewise a URL within the application's origin
+[[APPMANIFEST]]. An application that has a manifest is well served by using
+its processed manifest `id` as its `appUrl` -- once processed, both are
+absolute same-origin URLs, and the application then carries one identity on
+the platform and in this profile. Because the transport attests nothing finer
+than the origin,
+everything below the origin is cooperative namespacing, not isolation
+([[[#security-origin]]]).
 </div>
 
 A [=wallet=] that does not recognize the `AppConnectQuery` type MUST NOT
@@ -535,8 +575,7 @@ read-and-decrypt access to one collection the wallet already owns.
       "type": "AppConnectQuery",
       "app": {
         "name": "Example Notes",
-        "credentialType": "ExampleNotesUser",
-        "vocabBase": "https://app.example/vocab#"
+        "appUrl": "https://app.example/notes/"
       },
       "capabilityQuery": [
         {
@@ -912,7 +951,8 @@ An [=application=] running entirely in the browser has nowhere durable and
 trustworthy to keep a secret of its own. The [=app-key credential=] answers
 this by moving custody: the wallet holds the application's [=seed=] as an
 ordinary credential in the user's wallet, and returns it to the same
-application, at the same [=origin=], on every connect. The application's
+application -- same [=origin=], same `appUrl` -- on every connect. The
+application's
 identity is therefore stable **by custody**, not because the application
 managed to hold onto anything.
 
@@ -923,40 +963,38 @@ interval, and what lets an application check it without consulting anyone.
 
 ### Type array {#app-key-type-array}
 
-The credential's `type` member MUST be an array of exactly three entries, in
+The credential's `type` member MUST be an array of exactly two entries, in
 this order:
 
 ```json
-["VerifiableCredential", "AppKeyCredential", "<credentialType>"]
+["VerifiableCredential", "AppKeyCredential"]
 ```
-
-where `<credentialType>` is the `app.credentialType` value from the request.
 
 `AppKeyCredential` is the **marker type**. It makes "presents as an app key" a
 term check rather than a shape heuristic, which is what the store-time refusal
 ([[[#store-time-refusal]]]) and the match predicate
 ([[[#app-key-matching]]]) key off.
 
-### Term IRIs {#app-key-iris}
+The type array is identical for every application: nothing in the credential's
+vocabulary is application-scoped. Which application a credential belongs to is
+a claim -- `credentialSubject.appUrl` -- not a type.
 
-| Term | IRI | Scope |
-|------|-----|-------|
-| `AppKeyCredential` | `https://w3id.org/byoe#AppKeyCredential` | Shared by every application |
-| `seed` | `https://w3id.org/byoe#seed` | Shared by every application |
-| `origin` | `https://w3id.org/byoe#origin` | Shared by every application |
-| `name` | `https://schema.org/name` | Shared |
-| `description` | `https://schema.org/description` | Shared |
-| `<credentialType>` | `<vocabBase><credentialType>` | The application's own |
+### Term URLs {#app-key-urls}
 
-The marker term IRI is **one stable IRI for every application**. It MUST NOT be
-interpolated from the request's `vocabBase`. An application-scoped marker IRI
-would mean the marker asserted a different thing for each application, and the
-one rule that makes a store-time refusal possible ("this credential claims to
-be an app key") would no longer be expressible.
+| Term | URL |
+|------|-----|
+| `AppKeyCredential` | `https://w3id.org/byoe#AppKeyCredential` |
+| `appUrl` | `https://w3id.org/byoe#appUrl` |
+| `seed` | `https://w3id.org/byoe#seed` |
+| `origin` | `https://w3id.org/byoe#origin` |
+| `name` | `https://schema.org/name` |
+| `description` | `https://schema.org/description` |
 
-The `seed` and `origin` claim IRIs are likewise shared: they mean the same
-thing for every application, so they do not belong under a per-application
-namespace. `vocabBase` namespaces exactly one term, the application's own type.
+Every term is shared by every application and means the same thing for each.
+The marker term URL in particular is **one stable URL for every application**:
+an application-scoped marker would assert a different thing for each
+application, and the one rule that makes a store-time refusal possible ("this
+credential claims to be an app key") would no longer be expressible.
 
 <div class="note">
 **The marker is a self-declaration, not evidence.** The `type` array of a
@@ -976,7 +1014,7 @@ exactly this shape:
 {
   "@protected": true,
   "AppKeyCredential": "https://w3id.org/byoe#AppKeyCredential",
-  "<credentialType>": "<vocabBase><credentialType>",
+  "appUrl": "https://w3id.org/byoe#appUrl",
   "seed": "https://w3id.org/byoe#seed",
   "origin": "https://w3id.org/byoe#origin",
   "name": "https://schema.org/name",
@@ -984,8 +1022,8 @@ exactly this shape:
 }
 ```
 
-Only the second term varies: it is interpolated from the request's `vocabBase`
-and `credentialType`.
+Nothing in the object varies: it is byte-identical for every application and
+every credential.
 
 Carrying the terms inline, rather than by reference to a hosted context, is
 deliberate: the credential stays verifiable with no remote vocabulary fetch and
@@ -996,13 +1034,10 @@ The signature suite appends its own context entry when the credential is
 signed; that entry is the suite's, not this profile's.
 
 <div class="note">
-The shared term IRIs used above are published as part of a context document at
-`https://w3id.org/byoe/app-connect/v1`, which is a superset of what any one
-credential's inline context carries: it defines the shared BYOE terms of this
-profile as a whole, and necessarily cannot define an application's own type
-term, which is minted per application under `vocabBase`. Implementations may
-source the shared IRIs from it, but the credential as it appears on the wire
-carries the object above inline.
+The term URLs used above are also published as a context document at
+`https://w3id.org/byoe/app-connect/v1`, which defines the BYOE terms of this
+profile as a whole. Implementations may source the term URLs from it, but the
+credential as it appears on the wire carries the object above inline.
 </div>
 
 ### Seed encoding {#seed-encoding}
@@ -1114,7 +1149,7 @@ substitution breaks the derivation.
 It does **not** establish provenance, and it is important not to read it as
 doing so. An attacker who generates their own seed, derives its DID honestly,
 and self-issues a credential naming the victim's [=origin=] and the victim
-application's `credentialType` produces a credential that binds perfectly well.
+application's `appUrl` produces a credential that binds perfectly well.
 Nothing local can tell that credential from a legitimate one, because it *is* a
 legitimate credential -- for the attacker's identity. Keeping such a credential
 away from the user's wallet is the job of [[[#store-time-refusal]]], not of this
@@ -1127,7 +1162,8 @@ To find the [=app-key credential=] for a request, a [=wallet=] MUST select from
 its stored credentials those satisfying **all** of:
 
 1. the `type` array includes the `AppKeyCredential` marker;
-2. the `type` array includes the request's `app.credentialType`;
+2. `credentialSubject.appUrl` equals the request's `app.appUrl`, both in
+   serialized form ([[[#appconnectquery]]]);
 3. `issuer` is present and equals `credentialSubject.id`;
 4. `credentialSubject.origin` equals the attested requesting [=origin=];
 5. the credential binds per [[[#seed-binds-subject]]].
@@ -1172,7 +1208,9 @@ To mint an [=app-key credential=], a [=wallet=] MUST:
 3. assemble the credential with the type array of
    [[[#app-key-type-array]]], the inline context of [[[#app-key-context]]],
    `issuer` and `credentialSubject.id` both set to the derived DID,
-   `credentialSubject.seed` encoded per [[[#seed-encoding]]], and
+   `credentialSubject.seed` encoded per [[[#seed-encoding]]],
+   `credentialSubject.appUrl` set to the request's `app.appUrl` in serialized
+   form ([[[#appconnectquery]]]), and
    `credentialSubject.origin` set to the attested requesting origin;
 4. sign it with a signature suite the application can verify, using a signer
    for the seed-derived key -- so that the credential is genuinely self-issued;
@@ -1186,7 +1224,7 @@ The credential's `id` SHOULD be a fresh `urn:uuid:` value.
 
 The `name` and `description` members are display fields for the wallet's own
 credential list. They are informative; this profile places no requirement on
-their content beyond their term IRIs ([[[#app-key-iris]]]).
+their content beyond their term URLs ([[[#app-key-urls]]]).
 
 <div class="note">
 The wallet mints the seed, rather than the application minting one and asking
@@ -1223,7 +1261,7 @@ rules, even if it happens to carry a `seed` or `origin` claim.
 The provenance rule is the load-bearing one, and it is stricter than checking
 the credential's internal consistency because internal consistency is not the
 property under attack. An attacker can mint a perfectly well-formed app-key
-credential for their own seed, name the victim application's `credentialType`
+credential for their own seed, name the victim application's `appUrl`
 and the victim's [=origin=] in it, give it a future `issuanceDate`, and get the
 user to import it. Every local check passes, because the credential is
 genuine -- for the attacker's identity. It would then be stored, would satisfy
@@ -1258,7 +1296,7 @@ might apply a weaker check than the match predicate does.
     {
       "@protected": true,
       "AppKeyCredential": "https://w3id.org/byoe#AppKeyCredential",
-      "ExampleNotesUser": "https://app.example/vocab#ExampleNotesUser",
+      "appUrl": "https://w3id.org/byoe#appUrl",
       "seed": "https://w3id.org/byoe#seed",
       "origin": "https://w3id.org/byoe#origin",
       "name": "https://schema.org/name",
@@ -1267,7 +1305,7 @@ might apply a weaker check than the match predicate does.
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
   "id": "urn:uuid:3f2a8c40-9d51-4e0b-9f1c-5c6d0a2b7e34",
-  "type": ["VerifiableCredential", "AppKeyCredential", "ExampleNotesUser"],
+  "type": ["VerifiableCredential", "AppKeyCredential"],
   "name": "Example Notes app key",
   "description": "The Example Notes app keeps this key in your wallet so it can open your encrypted data on this and other devices.",
   "issuer": "did:key:z6MkExampleNotesAppKeySubjectDidPlaceholder",
@@ -1275,6 +1313,7 @@ might apply a weaker check than the match predicate does.
   "credentialSubject": {
     "id": "did:key:z6MkExampleNotesAppKeySubjectDidPlaceholder",
     "seed": "b0dRQXBwS2V5U2VlZFBsYWNlaG9sZGVyVmFsdWUzMkI",
+    "appUrl": "https://app.example/notes/",
     "origin": "https://app.example"
   },
   "proof": { "...": "..." }
@@ -1410,14 +1449,14 @@ abort on the first failure.
    </div>
 
 3. **Locate the app-key credential.** Search the embedded credentials for one
-   whose `type` array includes the application's own `credentialType`. The
-   `AppKeyCredential` marker MUST NOT be required at this step.
+   whose `credentialSubject.appUrl` equals the `app.appUrl` this request sent.
+   The `AppKeyCredential` marker MUST NOT be required at this step.
 
    If no such credential is present, the outcome is
    [[[#wallet-unsupported]]].
 
    <div class="note">
-   Matching on the application's own type alone, and requiring the marker only
+   Matching on the `appUrl` claim alone, and requiring the marker only
    at the next step, is what keeps "the wallet returned a credential that is
    wrong" from being indistinguishable from "the wallet returned nothing". If
    the marker were required here, a returned credential missing it would look
@@ -1437,8 +1476,9 @@ abort on the first failure.
 At step 4 above, an [=application=] MUST enforce **all** of the following, and
 MUST reject the response if any fails:
 
-1. the `type` array includes the application's own `credentialType`;
-2. the `type` array includes the `AppKeyCredential` marker;
+1. the `type` array includes the `AppKeyCredential` marker;
+2. `credentialSubject.appUrl` equals the `app.appUrl` this application sent in
+   the request, compared as an **exact string**;
 3. `issuer` is present, `credentialSubject.id` is present, and they are equal;
 4. `credentialSubject.origin` equals this application's own origin, compared as
    an **exact string**;
@@ -1575,11 +1615,12 @@ identity and no grants while believing itself connected.
   "holder": "did:web:wallet.example",
   "verifiableCredential": [
     {
-      "type": ["VerifiableCredential", "AppKeyCredential", "ExampleNotesUser"],
+      "type": ["VerifiableCredential", "AppKeyCredential"],
       "issuer": "did:key:z6MkExampleNotesAppKeySubjectDidPlaceholder",
       "credentialSubject": {
         "id": "did:key:z6MkExampleNotesAppKeySubjectDidPlaceholder",
         "seed": "b0dRQXBwS2V5U2VlZFBsYWNlaG9sZGVyVmFsdWUzMkI",
+        "appUrl": "https://app.example/notes/",
         "origin": "https://app.example"
       },
       "...": "...",
@@ -2539,6 +2580,15 @@ that decision. Two origins sharing a host but differing in scheme are the same
 `domain` and different `origin`s, and it is the origin that governs which
 credential is returned.
 
+**Below the origin, `appUrl` is namespacing, not isolation.** The transport
+attests nothing finer than the origin, so the `appUrl` that scopes an identity
+within an origin ([[[#appconnectquery]]]) is self-asserted: applications
+served from one origin can claim one another's `appUrl` and are not protected
+from each other by this profile. That is the browser's own boundary, not a new
+one -- same-origin applications already share storage and can already script
+each other -- and deploying mutually untrusting applications on one origin is
+outside this profile's threat model as it is outside the browser's.
+
 ### Seed confidentiality {#security-seed}
 
 The [=seed=] is the application's client secret: everything the application can
@@ -2574,7 +2624,7 @@ attacker's subject DID. Both are the natural first attempts, and both fail.
 
 **It does not establish provenance, and cannot.** An attacker who generates
 their own seed, derives its DID correctly, and self-issues a credential naming
-the victim application's `credentialType` and the victim's [=origin=] produces a
+the victim application's `appUrl` and the victim's [=origin=] produces a
 credential that binds. There is nothing wrong with it: it is a genuine app-key
 credential for the attacker's identity, and no amount of inspection
 distinguishes it from the user's own, because the two differ only in which seed
@@ -2585,7 +2635,8 @@ provenance rule exists for. The attacker gets the user to import such a
 credential -- from a link, a QR code, a file, or a restored backup -- and gives
 it an `issuanceDate` in the future. The wallet stores it (every check passes).
 On the next connect the wallet's match predicate ([[[#app-key-matching]]])
-accepts it: correct marker, correct type, self-issued, correct origin, binds.
+accepts it: correct marker, correct `appUrl`, self-issued, correct origin,
+binds.
 The latest-first ranking picks it over the user's real credential on the strength
 of its future date. The wallet then delegates the user's storage to the
 attacker's [=connecting DID=], and hands the attacker's seed back to the

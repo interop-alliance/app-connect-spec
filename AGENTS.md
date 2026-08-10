@@ -70,7 +70,7 @@ registration.
 
 The spec's main moving parts, in document order:
 
-- **The AppConnectQuery request** -- carriage over CHAPI/VCALM, exclusivity
+- **The AppConnectQuery request** -- transport over CHAPI/VCALM, exclusivity
   rules, capability requests, challenge/domain.
 - **Invocation target descriptors** -- the typed vocabulary describing what
   storage a grant targets, with a descriptor type registry and **per-class
