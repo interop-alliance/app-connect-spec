@@ -40,9 +40,9 @@ signed Verifiable Presentation carrying:
   very credential, targeting collections in the user's Space.
 
 There is no second popup, no store step, and no prior registration. The
-application never names a controller DID in its request, because on first run
-it does not have one yet: the wallet mints the identity and delegates to it in
-the same breath. That is what collapses the flow to a single round.
+application never names a controller DID in its request, because a [=public
+client=] on first run does not have one yet: the wallet mints the identity and
+delegates to it in the same breath. That is what collapses the flow to a single round.
 
 ### Scope {#scope}
 
@@ -210,8 +210,10 @@ value.
     along with the per-user [=app-key credential=] that the delegation
     targets. One of the two conformance classes; see
     [[[#conformance-classes]]]. An application is identified to the wallet by
-    its browser-attested [=origin=] and by the <code>app</code> block of its
-    [=AppConnectQuery=].</dd>
+    the identifier its transport attests -- for an in-browser application, its
+    [=origin=] -- and by the <code>app</code> block of its
+    [=AppConnectQuery=]. Every application this document profiles is a
+    [=public client=].</dd>
 
   <dt><dfn data-lt="AppConnectQuery|app connect query">App Connect query
     (AppConnectQuery)</dfn></dt>
@@ -234,8 +236,9 @@ value.
     [=connecting DID=] derived from that seed, and which is bound to the
     application's [=origin=] and application URL
     (<code>appUrl</code>). It is held in the user's wallet, and is what
-    makes an application's identity portable across the user's browsers without
-    the application holding any durable secret of its own. See
+    makes an application's identity portable across the user's clients even
+    though the application, as a [=public client=], holds no durable secret
+    of its own. See
     [[[#app-key-credential]]].</dd>
 
   <dt><dfn data-lt="capability|capabilities|zcap|zCap">capability (zCap)</dfn></dt>
@@ -258,6 +261,15 @@ value.
     in [[WAS]]. A namespace and configuration container for Resources
     within a [=Space=]. Every capability an App Connect response carries is
     scoped to a collection or to the Space itself.</dd>
+
+  <dt><dfn data-lt="confidential clients">confidential client</dfn></dt>
+  <dd>An [=application=] able to hold credentials of its own and to
+    authenticate itself by mechanisms attested outside the request body -- a
+    server-backed application presenting a TLS client certificate, or an
+    application whose DID and keys are published in a trusted registry -- in
+    the sense of the confidential client class of [[RFC6749]]. This document
+    does not profile confidential clients; see [[[#request-transport]]].
+    Contrast [=public client=].</dd>
 
   <dt><dfn data-lt="connecting DID|subject DID|controller DID">connecting DID
     (subject DID)</dfn></dt>
@@ -313,6 +325,17 @@ value.
     is the anti-phishing bind on the [=app-key credential=]: a credential
     minted for one origin is never returned to another.</dd>
 
+  <dt><dfn data-lt="public clients">public client</dfn></dt>
+  <dd>An [=application=] that cannot hold a durable secret or credential of
+    its own, in the sense of the public client class of [[RFC6749]]: an
+    in-browser application, a native mobile application, a command-line tool.
+    Its only trustworthy identification toward the [=wallet=] is what the
+    transport or platform attests -- for the in-browser case, the [=origin=]
+    -- and its identity is made stable across the user's clients by wallet
+    custody of the [=seed=], not by anything the client itself holds. Every
+    application this document's normative prose addresses is a public client.
+    Contrast [=confidential client=].</dd>
+
   <dt><dfn data-lt="Resource|resources">resource</dfn></dt>
   <dd>See <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#resources-and-blobs">Resources
     and Blobs</a> in [[WAS]]. The addressable unit of storage inside a
@@ -322,8 +345,9 @@ value.
   <dd>32 bytes of randomness minted by the [=wallet=], carried in the
     [=app-key credential=]'s <code>credentialSubject.seed</code> claim, from
     which the [=application=] deterministically derives its signing key, its
-    [=connecting DID=], and its key-agreement key. It is the application's
-    client secret; nothing else in the exchange substitutes for it.</dd>
+    [=connecting DID=], and its key-agreement key. It plays the role a client
+    secret plays for a [=confidential client=], except that the [=wallet=]
+    custodies it; nothing else in the exchange substitutes for it.</dd>
 
   <dt><dfn data-lt="Spaces|Space">space</dfn></dt>
   <dd>See <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#spaces">Spaces</a>
@@ -358,7 +382,7 @@ in-browser applications; it is also the deployment this document's normative
 prose is written against.
 
 <div class="note">
-**CHAPI is the in-browser transport mechanism, not the profile.** The request and
+**CHAPI is the in-browser transport mechanism.** The request and
 response are plain [[VCALM]] bodies -- a verifiable presentation request in,
 a signed verifiable presentation out -- and carry nothing CHAPI-specific. An
 application that does not run in a browser (a native mobile application, or a
@@ -372,17 +396,35 @@ attesting the identity of the requesting party to the wallet
 browser-attested [=origin=], a non-browser transport must supply an
 equivalently attested application identifier -- attested by the transport or
 platform, not asserted in the request body -- for the wallet to bind the
-[=app-key credential=] to. How a given non-browser transport attests its
+[=app-key credential=] to. Such an application is still a [=public client=]:
+the platform attestation stands in for the browser's origin attestation, the
+attested identifier occupies the credential's `origin` claim
+([[[#app-key-binding]]]), and it is the value meant wherever the normative
+prose -- which is written against the in-browser deployment -- says "origin"
+or "live browser origin". How a given non-browser transport attests its
 caller is out of scope for this document.
 </div>
 
 The request body MUST carry `challenge` and `domain` members
 ([[[#challenge-and-domain]]]).
 
-An [=application=] MUST NOT rely on any transport-level identification of
-itself other than the [=origin=] the transport attests. In particular, the
-`app` block described below is display and matching metadata; it is not
-evidence of who is asking.
+Every application this profile addresses is a [=public client=]: it holds no
+durable secret of its own, and its only trustworthy identification is what
+the transport or platform attests -- for an in-browser application, the
+[=origin=]. An [=application=] MUST NOT rely on any identification of itself
+beyond that attested identifier. In particular, the `app` block described
+below is display and matching metadata; it is not evidence of who is asking.
+
+<div class="note">
+**Confidential clients are left for future work.** A [=confidential
+client=] -- a server-backed application that can authenticate itself by
+means the transport or an external registry attests, such as a TLS client
+certificate or a DID published in a trusted registry -- does not need this
+profile's custodial identity model: it can hold its own keys, so the seed
+custody and origin matching this document builds on do not apply to it
+as-is. A profile connecting confidential clients to WAS-backed storage is
+left for a future document.
+</div>
 
 ### The AppConnectQuery {#appconnectquery}
 
@@ -420,7 +462,7 @@ application: its `id` member is likewise a URL within the application's origin
 [[APPMANIFEST]]. An application that has a manifest is well served by using
 its processed manifest `id` as its `appUrl` -- once processed, both are
 absolute same-origin URLs, and the application then carries one identity on
-the platform and in this profile. Because the transport attests nothing finer
+the platform and in this profile. Because the browser attests nothing finer
 than the origin,
 everything below the origin is cooperative namespacing, not isolation
 ([[[#security-origin]]]).
@@ -947,8 +989,10 @@ decrypt axis and the consent copy.
 
 ### Purpose {#app-key-purpose}
 
-An [=application=] running entirely in the browser has nowhere durable and
-trustworthy to keep a secret of its own. The [=app-key credential=] answers
+An [=application=] under this profile is a [=public client=] -- an
+application running entirely in the browser being the canonical case -- and
+has nowhere durable and trustworthy to keep a secret of its own. The
+[=app-key credential=] answers
 this by moving custody: the wallet holds the application's [=seed=] as an
 ordinary credential in the user's wallet, and returns it to the same
 application -- same [=origin=], same `appUrl` -- on every connect. The
@@ -1359,8 +1403,9 @@ its `@context` term definition ([[[#response-context]]]); omission is not a way
 to add it later.
 
 The presentation is signed by the **wallet's** holder DID, not by the
-[=connecting DID=]. The application's DID never leaves the application, so it
-cannot be the holder. The two attestations are separate and complementary: the
+[=connecting DID=]. The wallet is the party answering the challenge -- it is
+the one attesting that this response left this wallet for this domain -- so it
+is the holder. The two attestations are separate and complementary: the
 authentication proof attests that this wallet answered this challenge from this
 domain, and the [=app-key credential=]'s self-issued proof plus the
 seed-to-subject binding attest the identity being handed over.
@@ -1803,8 +1848,9 @@ of the [=app-key credential=] it matched or minted in this same exchange.
 
 The request never names a controller ([[[#capability-query]]]), and a wallet
 MUST NOT accept one from the request. This is the rule that makes the exchange
-single-round: on first run the identity being delegated to does not exist until
-the wallet creates it, so only the wallet can name it.
+single-round: for the [=public clients=] this document profiles, on first run
+the identity being delegated to does not exist until the wallet creates it, so
+only the wallet can name it.
 
 ### Per-user grantee DIDs {#per-user-grantee}
 
@@ -2047,29 +2093,13 @@ line first. Normatively, each line is a single JSON text [[RFC8259]]
 serialized without embedded newlines, and lines are separated by U+000A LINE
 FEED.
 
-The log is the *source of truth* for the resource it governs. Where a
-point-state document for the same resource is also served (the descriptor
-document a non-verifying consumer reads), that document is a projection, and
-this profile binds it to the log:
+The log resource is the only serving of the resource it governs: this
+profile defines no companion point-state document, and the governed
+resource's current state exists only as the `state` of the verified head
+entry ([[[#log-verification]]]).
 
-* The point-state document MUST carry a `history` member of the form
-  `{ "method": ..., "resource": ... }`, where `resource` is the URL of the log
-  resource and `method` echoes the log's format identifier
-  ([[[#log-format-ids]]]). The `history` member is a dispatch hint, not
-  authoritative: the log itself must confirm the method
-  (see [[[#log-verification]]]).
-* A [=log entry=]'s `state` MUST NOT contain a `history` member.
-* A consumer applying this profile MUST NOT act on the point-state document's
-  contents except where they are equal (after removing `history`, under the
-  canonicalization of [[[#log-hashing]]]) to the `state` of the verified head
-  entry. A mismatch is an integrity failure, not a race to resolve in the
-  document's favor.
-
-<div class="note">
-This is the same relationship `did:webvh` maintains between `did.jsonl` and
-its `did.json` projection: the projection exists for consumers that cannot
-verify, and verifying consumers never trust it.
-</div>
+The member name `history` is reserved in entry state: a [=log entry=]'s
+`state` MUST NOT contain a `history` member.
 
 ### Entry format {#log-entry}
 
@@ -2311,8 +2341,8 @@ place of recomputing from the entries themselves.
    ordinal is not the entry's 1-based position.
 2. **Genesis.** Recompute and check the [=SCID=] ([[[#log-hashing]]]).
    Check that `parameters.method` names a format this verifier implements
-   ([[[#log-format-ids]]]); where a `history` dispatch hint or a
-   [=chain-head pin=] supplied an expected method, check that it matches.
+   ([[[#log-format-ids]]]); where a [=chain-head pin=] or the referencing
+   profile supplied an expected method, check that it matches.
 3. **Chain.** For each entry, recompute the entry hash from the
    predecessor-substituted input and check it against the `versionId`.
 4. **Proofs.** For each entry, verify every proof per [[[#log-proof]]].
@@ -2347,11 +2377,7 @@ workflows, verification runs:
   account's governed resources verifies to establish its [=chain-head pin=]
   ([[[#log-pin]]]);
 * on return visits -- re-verification against the held pin is where host
-  rollback, truncation, and forks are detected (step 7); and
-* before trusting the point-state projection -- a consumer may act on the
-  descriptor document only where it matches the verified head
-  ([[[#log-resource]]]), so a projection consumer that needs trust verifies
-  first.
+  rollback, truncation, and forks are detected (step 7).
 </div>
 
 ### Appending {#log-append}
@@ -2464,22 +2490,17 @@ orderable version number. A future revision of this profile is a different
 identifier reached only through the handover mechanism
 ([[[#log-handover]]]), not a "greater version" of this one.
 
-The identifier appears at three seams plus the pin, with a strict
+The identifier appears at two seams plus the pin, with a strict
 authority ordering:
 
 1. **Authoritative:** `parameters.method` in the genesis entry. It is
    SCID-committed and proof-covered ([[[#log-hashing]]]), which makes it the
    only downgrade-safe location: a host cannot alter it without changing the
    log's identity and breaking its genesis proof.
-2. **Dispatch hint:** the `history: { method, resource }` member on the
-   referencing point-state document ([[[#log-resource]]]) -- how a consumer
-   finds the log and picks a verifier before fetching it. Never
-   authoritative; the log's own genesis must confirm it, and a mismatch is
-   refused.
-3. **Payload schema:** the `state` document's own `type` member
+2. **Payload schema:** the `state` document's own `type` member
    ([[[#log-entry]]]) -- the resource schema, versioned by the referencing
    profile independently of the log format.
-4. **The pin:** the [=chain-head pin=] stores the method beside the SCID and
+3. **The pin:** the [=chain-head pin=] stores the method beside the SCID and
    head, so a served format switch outside the handover mechanism
    ([[[#log-handover]]]) is refused as a continuity break rather than
    dispatched to a different verifier.
@@ -2580,7 +2601,7 @@ that decision. Two origins sharing a host but differing in scheme are the same
 `domain` and different `origin`s, and it is the origin that governs which
 credential is returned.
 
-**Below the origin, `appUrl` is namespacing, not isolation.** The transport
+**Below the origin, `appUrl` is namespacing, not isolation.** The browser
 attests nothing finer than the origin, so the `appUrl` that scopes an identity
 within an origin ([[[#appconnectquery]]]) is self-asserted: applications
 served from one origin can claim one another's `appUrl` and are not protected
@@ -2591,13 +2612,15 @@ outside this profile's threat model as it is outside the browser's.
 
 ### Seed confidentiality {#security-seed}
 
-The [=seed=] is the application's client secret: everything the application can
-sign and everything it can decrypt derives from it.
+The [=seed=] plays the role of the application's client secret, custodied by
+the wallet because a [=public client=] cannot hold one of its own: everything
+the application can sign and everything it can decrypt derives from it.
 
-In transit it exists only inside the [=CHAPI=] response, which is a
-browser-mediated channel between the wallet and the requesting origin. It is
-never sent to the storage server, never appears in a capability, and never
-appears in a URL.
+In transit it exists only inside the response presentation -- for an
+in-browser application, the [=CHAPI=] response, a browser-mediated channel
+between the wallet and the requesting origin; over another transport, that
+transport's response ([[[#request-transport]]]). It is never sent to the
+storage server, never appears in a capability, and never appears in a URL.
 
 At rest it lives in two places: in the user's wallet, as an ordinary stored
 credential subject to whatever protection the wallet applies to the user's
@@ -2698,8 +2721,7 @@ a host that serves stale, forged, truncated, or forked logs, and its
 guarantees come entirely from client-side recomputation: the chain from the
 [=SCID=] forward, every proof, and every authorization check against the
 independently verified [=controller document=]. Nothing served -- a stated
-head, a digest, a count, a point-state projection, a `history` hint -- is
-accepted without the log confirming it.
+head, a digest, a count -- is accepted without the log confirming it.
 
 Two attacks remain outside the model, and stating them is part of the design:
 
