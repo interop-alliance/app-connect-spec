@@ -99,7 +99,7 @@ anything an application sees.
 | Document | Relationship |
 |----------|--------------|
 | [[WAS]] | Defines the Space / Collection / Resource model, the HTTP API, and the capability authorization profile whose delegations this profile produces. |
-| [[WAS-EC]] | Forthcoming companion profile. Defines the encrypted-collection construction: key epochs, roster recipients, envelope format, and the derivation of a recipient key from a controller DID. This profile defers to it for the recipient-key derivation ([[[#recipient-derivation]]]), the key-agreement half of the application's key material ([[[#key-derivation]]]), the epoch rotation behind forward-only re-grants ([[[#descriptor-shared-collection]]]), and the definition of [=epoch-roster recipient=] itself. |
+| [[WAS-EC]] | Companion profile (draft). Defines the encrypted-collection construction: key epochs, roster recipients, envelope format, and the derivation of a recipient key from a controller DID. This profile defers to it for the recipient-key derivation ([[[#recipient-derivation]]]), the key-agreement half of the application's key material ([[[#key-derivation]]]), the epoch rotation behind forward-only re-grants ([[[#descriptor-shared-collection]]]), and the definition of [=epoch-roster recipient=] itself. |
 | [[VCALM]] | Defines verifiable presentation requests and their query types: the request body that carries an [=AppConnectQuery=], the `DIDAuthentication` and `QueryByExample` query types this profile interacts with, and `AuthorizationCapabilityQuery`, the standalone capability-request query type whose entry shape [=AppConnectQuery=] reuses. |
 | [[CHAPI]] | The transport this profile is defined over: it supplies the browser-attested requesting origin the [=app-key credential=] is bound to. |
 | [[DID-WEBVH]] | The log format the [=resource log=] profile ([[[#resource-log-profile]]]) is extracted from, and one method a Space controller's [=controller document=] may be verified under. Nothing outside that profile depends on it. |
@@ -2111,13 +2111,13 @@ Canonicalization throughout this profile is JCS [[RFC8785]], over strict JSON
 values (no `undefined`, no non-finite numbers).
 
 **The hash serialization format.** Every hash this profile mints, including the
-entry hash, the [=SCID=], and the `scid` values carried in `nextLog` and 
+entry hash, the [=SCID=], and the `scid` values carried in `nextLog` and
 `previousLog`, is serialized the same way: the SHA-256 digest of the
 canonicalized input, wrapped as a multihash (the bytes `0x12`, `0x20`, then the
 32 digest bytes), encoded with the `base58btc` alphabet, with **no** multibase
 prefix. This is byte-for-byte the `did:webvh` entry-hash format. It is
 deliberately NOT the `z`-prefixed multibase serialization, and NOT the
-`base64url`serialization used for content addressing elsewhere in [[WAS]]; 
+`base64url`serialization used for content addressing elsewhere in [[WAS]];
 one format, chosen once, so a verifier never has to guess.
 
 **The entry hash.** The `entryHash` of entry `n` is the hash, as above, of the
@@ -2315,7 +2315,7 @@ workflows, verification runs:
 
 ### Appending {#log-append}
 
-Appending is linearized by the host's compare-and-swap (CAS) primitive 
+Appending is linearized by the host's compare-and-swap (CAS) primitive
 (conditional writes on the log resource's entity tag, per [[WAS]]); the chain
 itself carries no consensus mechanism, and none is needed: concurrent writers
 produce a CAS conflict as opposed to a fork.
