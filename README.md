@@ -8,7 +8,7 @@
 > user-owned storage without operating a backend of its own. The profile
 > defines the `AppConnectQuery` request, the app-key credential and its
 > seed-to-subject binding rule, the invocation-target descriptor vocabulary
-> with per-class action ceilings, the response presentation, and the
+> with per-class allowed actions, the response presentation, and the
 > fail-closed processing rules.
 
 This repository contains the App Connect specification, in

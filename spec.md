@@ -50,9 +50,9 @@ This document defines:
 
 * the [=AppConnectQuery=] request query type and its processing rules
   ([[[#request]]]);
-* the [=invocation target descriptor=] vocabulary and the per-class action
-  ceilings that bound what a delegation may carry ([[[#descriptors]]]);
-* the [=app-key credential=]: its marker type, claim vocabulary, seed
+* the [=invocation target descriptor=] vocabulary and the per-class allowed
+  actions that bound what a delegation may carry ([[[#descriptors]]]);
+* the [=app-key credential=]: its `AppKeyCredential` type, claim vocabulary, seed
   encoding, and the seed-to-subject binding rule ([[[#app-key-credential]]]);
 * the response presentation's `zcap` and `appConnect` members and the
   application-side verification order ([[[#response]]]);
@@ -101,7 +101,7 @@ anything an application sees.
 | Document | Relationship |
 |----------|--------------|
 | [[WAS]] | Defines the Space / Collection / Resource model, the HTTP API, and the capability authorization profile whose delegations this profile produces. |
-| [[WAS-EC]] | Companion profile (draft). Defines the encrypted-collection construction: key epochs, roster recipients, envelope format, and the derivation of a recipient key from a controller DID. This profile defers to it for the recipient-key derivation ([[[#recipient-derivation]]]), the key-agreement half of the application's key material ([[[#key-derivation]]]), the epoch rotation behind forward-only re-grants ([[[#descriptor-shared-collection]]]), and the definition of [=epoch-roster recipient=] itself. |
+| [[WAS-EC]] | Companion profile (draft). Defines the encrypted-collection construction: key epochs, roster recipients, envelope format, and the derivation of a recipient key from a controller DID. This profile defers to it for the recipient-key derivation ([[[#recipient-derivation]]]), the key-agreement half of the application's key material ([[[#key-derivation]]]), the epoch rotation behind forward-only re-grants ([[[#descriptor-shared-wallet-collection]]]), and the definition of [=epoch-roster recipient=] itself. |
 | [[VCALM]] | Defines verifiable presentation requests and their query types: the request body that carries an [=AppConnectQuery=], the `DIDAuthentication` and `QueryByExample` query types this profile interacts with, and `AuthorizationCapabilityQuery`, the standalone capability-request query type whose entry shape [=AppConnectQuery=] reuses. |
 | [[CHAPI]] | The transport for in-browser applications, and the one this profile's normative prose is written against: it supplies the browser-attested requesting origin the [=app-key credential=] is bound to. Non-browser applications carry the same [[VCALM]] request over other transports ([[[#request-transport]]]). |
 | [[DID-WEBVH]] | The log format the [=resource log=] profile ([[[#resource-log-profile]]]) is extracted from, and one method a Space controller's [=controller document=] may be verified under. Nothing outside that profile depends on it. |
@@ -118,7 +118,7 @@ A conformant **[=wallet=]** MUST:
   per [[[#request]]];
 * match or mint the [=app-key credential=] per
   [[[#app-key-credential]]];
-* refuse to store a marker-carrying credential arriving from outside an
+* refuse to store an `AppKeyCredential`-typed credential arriving from outside an
   exchange it performed ([[[#store-time-refusal]]]);
 * resolve, cap, and delegate the requested capabilities per [[[#grants]]],
   recording each grant it delegates so that it can later be revoked
@@ -308,7 +308,7 @@ value.
     <code>controller</code> is the [=connecting DID=], whose
     <code>invocationTarget</code> is a URL inside the user's [=Space=], and
     whose <code>allowedAction</code> has been capped per
-    [[[#action-ceilings]]].</dd>
+    [[[#allowed-actions]]].</dd>
 
   <dt><dfn data-lt="invocation target descriptors|descriptor">invocation
     target descriptor</dfn></dt>
@@ -361,6 +361,15 @@ value.
     definition</a> in [[WAS]]. The resource a capability authorizes action on,
     as an absolute URL.</dd>
 
+  <dt><dfn>unsatisfiable</dfn></dt>
+  <dd>The verdict on a capability request entry that cannot be fulfilled: its
+    [=invocation target descriptor=] does not resolve to a [=target=] the
+    [=wallet=] can delegate under this profile's rules, or the wallet does not
+    recognize what the entry asks for. An unsatisfiable entry produces no
+    [=grant=]: the wallet skips it at delegation time and shows it on the
+    consent surface as something it cannot fulfill. See
+    [[[#descriptor-model]]].</dd>
+
   <dt><dfn data-lt="wallets">wallet</dfn></dt>
   <dd>The software that holds the user's credentials and controls the user's
     [=Space=], and that processes an [=AppConnectQuery=]. One of the two
@@ -394,15 +403,15 @@ What any such transport must replicate is CHAPI's one load-bearing property:
 attesting the identity of the requesting party to the wallet
 ([[[#security-origin]]]). Wherever this document relies on the
 browser-attested [=origin=], a non-browser transport must supply an
-equivalently attested application identifier -- attested by the transport or
-platform, not asserted in the request body -- for the wallet to bind the
+equivalently attested application identifier, attested by the transport or
+platform, for the wallet to bind the
 [=app-key credential=] to. Such an application is still a [=public client=]:
 the platform attestation stands in for the browser's origin attestation, the
 attested identifier occupies the credential's `origin` claim
 ([[[#app-key-binding]]]), and it is the value meant wherever the normative
-prose -- which is written against the in-browser deployment -- says "origin"
+prose (written against the in-browser deployment) says "origin"
 or "live browser origin". How a given non-browser transport attests its
-caller is out of scope for this document.
+caller is left for future work.
 </div>
 
 The request body MUST carry `challenge` and `domain` members
@@ -410,7 +419,7 @@ The request body MUST carry `challenge` and `domain` members
 
 Every application this profile addresses is a [=public client=]: it holds no
 durable secret of its own, and its only trustworthy identification is what
-the transport or platform attests -- for an in-browser application, the
+the transport or platform attests, which for an in-browser application means the
 [=origin=]. An [=application=] MUST NOT rely on any identification of itself
 beyond that attested identifier. In particular, the `app` block described
 below is display and matching metadata; it is not evidence of who is asking.
@@ -474,35 +483,21 @@ credential=], which the application detects per [[[#wallet-unsupported]]].
 
 ### Exclusivity {#request-exclusivity}
 
-An App Connect request is one mental model per exchange, and the rules below
-keep it that way. A [=wallet=] MUST enforce all of them, and MUST treat a
-violation as a malformed request rather than resolving it in the application's
-favour:
+An App Connect request asks for exactly one thing: a connection, so that
+the user consents to a single, clearly described interaction rather than a
+bundle of unrelated requests. A [=wallet=] MUST enforce the rules below, and
+MUST treat a violation as a malformed request rather than resolving it in the
+application's favour:
 
 1. A request MUST NOT carry more than one `AppConnectQuery`.
 2. A request carrying an `AppConnectQuery` MUST NOT also carry a
    `QueryByExample` query.
 3. A request carrying an `AppConnectQuery` MUST NOT also carry an
-   `AuthorizationCapabilityQuery` query or its legacy `ZcapQuery` alias
-   ([[[#legacy-alias]]]).
-4. A request carrying an `AppConnectQuery` MAY also carry a
-   `DIDAuthentication` query [[VCALM]], and a conformant
-   [=application=] MUST carry one. A [=wallet=] MUST accept a request that
-   carries none, and answers it with an unsigned presentation.
-
-<div class="note">
-Rule 4 is what makes rules 1 to 3 safe to state so bluntly. The
-`DIDAuthentication` pairing is what causes the wallet to sign the response
-presentation, and the signature is what binds the embedded [=grants=] and the
-`appConnect` marker to this request's challenge and domain
-([[[#response-members]]]). An App Connect request without a
-`DIDAuthentication` query receives an unsigned presentation, whose grants still
-self-authenticate through their own delegation proofs but whose freshness is
-unattested -- which is why the requirement is asymmetric: the wallet tolerates
-the unsigned case, and the application conformance class, whose verification
-procedure ([[[#response-verification]]]) is defined over a signed response, does
-not use it.
-</div>
+   `AuthorizationCapabilityQuery` query.
+4. A conformant [=application=] MUST also include a `DIDAuthentication`
+   query [[VCALM]] alongside the `AppConnectQuery`. A [=wallet=] MUST NOT
+   treat its absence as malformed; it MUST accept such a request and answer
+   it with an unsigned presentation.
 
 The exclusivity rules exist because an App Connect exchange has one consent
 surface describing one relationship. Mixing in a credential-sharing query or a
@@ -521,26 +516,40 @@ the [=connecting DID=]. A [=wallet=] MUST normalize it as follows:
   its own key material.
 * a **single object** normalizes to a one-element list.
 * an **array** normalizes to itself.
-* an entry that is not an object is malformed, and the wallet MUST treat the
-  whole query as malformed rather than skipping the entry.
+* an entry that is not an object is malformed, and the
+  wallet MUST treat the whole query as malformed rather than skipping the entry.
 
 Each entry has the shape of a capability request detail [[VCALM]], **minus two
 members**:
 
-| Member | Required | Value |
-|--------|----------|-------|
-| `invocationTarget` | yes | An [=invocation target descriptor=]; see [[[#descriptors]]]. |
-| `allowedAction` | no | A string or array of strings naming the requested [=actions=]. Absent means read-only; see [[[#default-actions]]]. |
-| `referenceId` | no | An application-chosen label. Opaque to the wallet; see [[[#reference-id]]]. |
+| Member             | Required | Value                                                                                                              |
+|--------------------|----------|--------------------------------------------------------------------------------------------------------------------|
+| `invocationTarget` | yes      | An [=invocation target descriptor=]; see [[[#descriptors]]].                                                       |
+| `allowedAction`    | yes      | A non-empty string or array of strings naming the requested [=actions=]; see [[[#action-vocabulary]]].             |
+| `referenceId`      | no       | An application-chosen label. Opaque to the wallet; see [[[#reference-id]]].                                        |
+
+A [=wallet=] MUST treat an entry with no `allowedAction` member, or one whose
+value is an empty array, as making the whole query malformed. There is no
+default: an application states the actions it wants, even for a target class
+that can only ever yield reads. Absence has no safe meaning to fall back on --
+in [[ZCAP]] an absent `allowedAction` means the capability does not restrict
+actions, the opposite of "did not ask" ([[[#allowed-actions]]]).
 
 * An entry MUST NOT carry a `controller`. The [=wallet=] fills it with the
   subject DID of the [=app-key credential=] it matched or minted
-  ([[[#delegation-target]]]). This is the member an application could not
-  supply on first run, and dropping it is what collapses the flow to one
+  ([[[#delegation-target]]]). This is the member a public client cannot
+  supply on a first run, and dropping it is what collapses the flow to one
   round. A wallet MUST ignore any `controller` an entry does carry.
 * An entry MUST NOT carry a `reason`. The App Connect consent surface describes
   the relationship as a whole and supersedes per-grant reason strings
   ([[[#consent]]]). A wallet MUST NOT display a `reason` an entry does carry.
+* An entry MUST NOT carry any member not named in this section. A [=wallet=]
+  MUST treat an entry carrying an unrecognized member as making the whole
+  query malformed, exactly as for a non-object entry -- not skip the member,
+  and not skip the entry. Ignoring the member would leave a misspelling --
+  `allowedActions`, say -- indistinguishable from an entry that omitted the
+  member, and the omission rule above only fails visibly if nothing
+  unrecognized can stand in for the real member.
 
 An [=application=] SHOULD NOT name the same collection in more than one request
 entry. If it does, which of the resulting [=grants=] governs the application's
@@ -554,7 +563,18 @@ A wallet MUST NOT be required to carry it onto a delegated grant, and an
 
 An application MUST correlate a returned [=grant=] with the request entry that
 produced it by the grant's `invocationTarget` URL -- specifically by the
-collection segment of that URL ([[[#url-template]]]).
+collection segment of that URL ([[[#url-template]]]). For example, if an
+application asks for a collection named `notes`, the grant answering that entry
+is the one whose `invocationTarget` ends in `/notes` (say,
+`https://wallet-storage.example/space/81246131-69a4-45ab-9bff-9c946b59cf2e/notes`).
+The match is on the full path segment, bounded by the `/` delimiter -- not a
+substring or bare suffix of the URL. Requests for collections named `notes`
+and `published-notes` are the case that distinguishes the two readings: a
+grant ending in `/published-notes` does not match the `notes` entry, though a
+naive suffix match on the bare name would accept it.
+The rest of the URL cannot serve as a match key: the host and Space id are
+chosen by the wallet, and the application learns them only by parsing the
+grant.
 
 An application MUST NOT correlate by position. Unsatisfiable entries produce no
 grant and are skipped, so the response's `zcap` array is not index-aligned with
@@ -571,10 +591,10 @@ An application MUST set `domain` to its own live browser origin -- the origin
 the [=CHAPI=] mediator will attest to the wallet -- and not to any other value.
 
 A [=wallet=] MUST refuse a request whose `domain` does not match the attested
-requesting [=origin=]. The comparison is on host. A wallet MUST apply this
-check to any request carrying a `domain`, whether or not it also carries a
-`DIDAuthentication` query, and MUST surface a domain mismatch as a distinct
-refusal rather than as a generic processing error.
+requesting [=origin=]. (The comparison is on the url host). A wallet MUST apply
+this check to any request carrying a `domain`, regardless of whether it also
+carries a `DIDAuthentication` query, and MUST surface a domain mismatch as a
+distinct refusal rather than as a generic processing error.
 
 <div class="note">
 A `domain` that names an origin other than the channel the request arrived on
@@ -588,23 +608,18 @@ asking for a proof at all.
 A [=wallet=] that signs the response MUST echo both the request's `challenge`
 and its `domain` into the authentication proof.
 
-### The legacy ZcapQuery alias {#legacy-alias}
-
-On the standalone capability-request channel -- that is, a request that carries
-no `AppConnectQuery` -- a [=wallet=] MUST accept the query type string
-`ZcapQuery` as an alias of `AuthorizationCapabilityQuery` [[VCALM]], with
-identical processing.
-
-The alias exists for deployed requesters that predate the canonical spelling.
-It is **not** part of the App Connect exchange: per [[[#request-exclusivity]]],
-an `AppConnectQuery` may not co-occur with either spelling. New implementations
-MUST emit `AuthorizationCapabilityQuery`.
-
 ### Example request {#request-example}
 
 A complete App Connect request: DID authentication plus one App Connect query
 asking for one private application collection, one public collection, and
 read-and-decrypt access to one collection the wallet already owns.
+
+Each descriptor's `name` becomes the collection segment of the resolved
+target URL ([[[#descriptor-registry]]]): `"name": "notes"` resolves to a
+full URL ending in `/notes` (for example,
+`https://wallet-storage.example/space/81246131-69a4-45ab-9bff-9c946b59cf2e/notes`),
+and that segment is what the application later correlates the returned
+grants by ([[[#reference-id]]]).
 
 ```json
 {
@@ -624,7 +639,7 @@ read-and-decrypt access to one collection the wallet already owns.
           "referenceId": "notes",
           "allowedAction": ["GET", "HEAD", "PUT", "POST", "DELETE"],
           "invocationTarget": {
-            "type": "https://w3id.org/byoe#collection",
+            "type": "https://w3id.org/byoe#private-collection",
             "name": "notes"
           }
         },
@@ -640,7 +655,7 @@ read-and-decrypt access to one collection the wallet already owns.
           "referenceId": "contacts",
           "allowedAction": ["GET", "HEAD"],
           "invocationTarget": {
-            "type": "https://w3id.org/byoe#shared-collection",
+            "type": "https://w3id.org/byoe#shared-wallet-collection",
             "name": "contacts"
           }
         }
@@ -658,14 +673,14 @@ read-and-decrypt access to one collection the wallet already owns.
 
 A capability request names what it wants access to in its `invocationTarget`.
 An [=application=] performing App Connect does not know the URL of the user's
-[=Space=] -- it does not know the storage host, and it does not know the Space
-id -- so it cannot name a concrete target. It names an **abstract descriptor**
+[=Space=]. It does not know the storage host, and it does not know the Space
+id, so it cannot name a concrete target. It names an *abstract descriptor*
 instead, and the [=wallet=] resolves the descriptor against the Space it
 controls.
 
-Resolution yields either a concrete target inside the user's Space, together
-with the target class that bounds it ([[[#action-ceilings]]]), or the verdict
-**unsatisfiable**.
+Resolution either yields a concrete target inside the user's Space, together
+with the target class that bounds it ([[[#allowed-actions]]]), or determines
+that the entry cannot be fulfilled, in which case the entry is [=unsatisfiable=].
 
 An `invocationTarget` MUST be either:
 
@@ -676,14 +691,15 @@ An `invocationTarget` MUST be either:
 A [=wallet=] MUST determine the target class from the resolved target itself,
 so that a descriptor object and the equivalent URL string resolve to the same
 class and are bounded identically. A string target MUST NOT be able to reach a
-looser ceiling than the descriptor form of the same target.
+broader allowed-action set than the descriptor form of the same target.
 
-Honoring that parity requires the wallet to know the standing of each of its own
-collections independently of how a request named it -- in particular which of
-them are public and which are protected -- since a string target carries no
+Honoring that parity requires the wallet to know the classification of its own
+collections, independently of how a request named it. In particular, it should
+know which of them are public ([[[#descriptor-public-collection]]]) and which
+are protected ([[[#protected-collections]]]), since a string target carries no
 descriptor type to classify it by.
 
-An **unsatisfiable** request entry MUST NOT produce a [=grant=]. The wallet
+An [=unsatisfiable=] request entry MUST NOT produce a [=grant=]. The wallet
 MUST skip it at delegation time and MUST show it on the consent surface as
 something it cannot fulfill ([[[#consent]]]).
 
@@ -717,20 +733,19 @@ rules in [[[#string-targets]]], assume `/space/` sits directly under the host.
 
 This registry is normative. The following descriptor types are defined.
 
-| Type IRI | `name` | Resolves to | Action ceiling |
-|----------|--------|-------------|----------------|
-| `https://w3id.org/byoe#collection` | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
-| `https://w3id.org/byoe#public-collection` | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST` |
-| `https://w3id.org/byoe#shared-collection` | required | `<spaceUrl>/<name>` | `GET`, `HEAD` |
-| `https://w3id.org/byoe#space` | ignored | `<spaceUrl>` | `GET`, `HEAD` |
+| Type IRI                                         | `name`   | Resolves to         | Allowed actions                        |
+|--------------------------------------------------|----------|---------------------|----------------------------------------|
+| `https://w3id.org/byoe#private-collection`       | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
+| `https://w3id.org/byoe#public-collection`        | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
+| `https://w3id.org/byoe#shared-wallet-collection` | required | `<spaceUrl>/<name>` | `GET`, `HEAD`                          |
 
 Where `name` is required, a [=wallet=] MUST validate it against the collection
 name grammar ([[[#collection-name-grammar]]]) and MUST resolve the descriptor
-unsatisfiable when it does not match.
+[=unsatisfiable=] when it does not match.
 
-#### `#collection` {#descriptor-collection}
+#### `#private-collection` {#descriptor-private-collection}
 
-`https://w3id.org/byoe#collection` requests an application-scoped
+`https://w3id.org/byoe#private-collection` requests an application-scoped
 [=collection=] in the user's Space, named by `name`.
 
 * It resolves to `<spaceUrl>/<name>`.
@@ -738,12 +753,12 @@ unsatisfiable when it does not match.
   before delegating, per [[[#provisioning]]].
 * A collection provisioned under this descriptor MUST be encrypted from
   creation ([[[#encrypted-by-default]]]).
-* Its ceiling is the full action vocabulary: this is the application's own
-  data, and the consent surface plus the shorter write lifetime
-  ([[[#ttl]]]) are what bound it.
+* Its allowed actions are the full action vocabulary: this is the
+  application's own data, and the consent surface plus the shorter write
+  lifetime ([[[#ttl]]]) are what bound it.
 * If `name` happens to be one of the wallet's own protected collections
   ([[[#protected-collections]]]), the resolved class is
-  *protected collection* and the read-only ceiling applies instead. A wallet
+  *protected collection* and the read-only bound applies instead. A wallet
   MUST NOT provision over a protected collection.
 
 #### `#public-collection` {#descriptor-public-collection}
@@ -752,30 +767,33 @@ unsatisfiable when it does not match.
 contents are readable by anyone on the web without authorization.
 
 * It resolves to `<spaceUrl>/<name>`.
-* The wallet MUST provision it as **plaintext** -- a public collection is never
-  encrypted -- and MUST set a collection-level world-readable access policy on
+* The wallet MUST provision it as
+  **[plaintext](https://w3c-ccg.github.io/wallet-attached-storage-spec/#plaintext-collection)**
+  ([[WAS]]). A public collection is never
+  encrypted, and MUST set a collection-level world-readable access policy on
   it. The policy is set by the wallet, which controls the Space; a delegated
   capability could not set it.
 * Public covers unauthenticated **reads only**. Writes remain
   capability-authorized, so the wallet still delegates an ordinary
   collection-scoped capability alongside setting the policy.
-* Its ceiling is **add-only**: `GET`, `HEAD`, and `POST`, never `PUT` or
-  `DELETE`. A write to a plaintext world-readable target is not data management
-  but publication under the user's identity, and is irreversible in practice:
-  retracting removes the link, not the copies already fetched. An application
-  may add to what it published; it may never rewrite or retract it.
+* Its allowed actions are the full action vocabulary, the same as a private
+  collection's: published content is still the application's own data, and
+  un-publishing is as much data management as publishing. An application may
+  rewrite (`PUT`) or retract (`DELETE`) what it published. Retraction removes
+  the stored copy, not copies already fetched -- that is the nature of
+  publication, not a reason to forbid it.
 * **A public collection is only ever created public, never converted.** A
-  `#public-collection` descriptor naming a collection that **already exists and
-  is not already public** MUST resolve **unsatisfiable**. A wallet MUST NOT
+  `#public-collection` descriptor naming a collection that *already exists and
+  is not already public* MUST resolve [=unsatisfiable=]. A wallet MUST NOT
   make an existing non-public collection world-readable in response to a
   request.
 * An idempotent re-grant is unaffected: a `#public-collection` descriptor
-  naming a collection that already exists **and is already public** stays
+  naming a collection that already exists *and is already public* stays
   satisfiable, and reconnecting an application to the collection it previously
   published into behaves exactly as the first connect did
   ([[[#provisioning]]]).
 * A `#public-collection` descriptor naming a protected collection
-  ([[[#protected-collections]]]) MUST resolve **unsatisfiable**,
+  ([[[#protected-collections]]]) MUST resolve [=unsatisfiable=],
   unconditionally. This is the special case of the conversion rule that holds
   even where a wallet's own bookkeeping is uncertain: a requesting party can
   never flip a user's own credentials, activity, or published identity public.
@@ -791,31 +809,30 @@ whole class of conversion requests rather than enumerating which conversions are
 unacceptable.
 </div>
 
-#### `#shared-collection` {#descriptor-shared-collection}
+#### `#shared-wallet-collection` {#descriptor-shared-wallet-collection}
 
-`https://w3id.org/byoe#shared-collection` requests read-and-**decrypt** access
-to an encrypted collection the wallet already owns -- not merely the ability to
-fetch its ciphertext.
+`https://w3id.org/byoe#shared-wallet-collection` requests read-and-decrypt access
+to an encrypted collection the wallet already owns.
 
 * It resolves to `<spaceUrl>/<name>`.
-* `name` MUST name a collection **the wallet itself owns and encrypts** -- one
+* `name` MUST name a collection the wallet itself owns and encrypts -- one
   of the wallet's own standard encrypted collections. A plaintext collection, a
   collection provisioned for an application, the [=Space=] itself, and a name
-  the wallet does not recognize MUST all resolve **unsatisfiable**.
+  the wallet does not recognize MUST all resolve [=unsatisfiable=].
 * Because satisfiability is decided by looking the name up in the set of
   collections the wallet owns and encrypts, that lookup subsumes the collection
   name grammar check ([[[#collection-name-grammar]]]) for this descriptor type:
   a name that fails the grammar cannot be in the set.
-* Its granted actions are exactly the class ceiling, `GET` and `HEAD`
-  ([[[#action-ceilings]]]) -- not an intersection with what was requested. A
+* Its granted actions are exactly the class's allowed actions, `GET` and `HEAD`
+  ([[[#allowed-actions]]]) -- not an intersection with what was requested. A
   share is never a write grant, and `HEAD` rides every read grant
   ([[[#action-vocabulary]]]), so a share that asked for a narrower subset still
   receives both.
 * **The two axes are fused.** Satisfying a share means granting *both* the
   read-only [=capability=] (the fetch axis) *and* [=epoch-roster recipient=]
   status for the collection's current epoch (the decrypt axis). A [=wallet=]
-  MUST NOT grant either axis alone, and MUST NOT allow a **durable partial
-  state** in which one axis stands without the other. Where the two cannot be
+  MUST NOT grant either axis alone, and MUST NOT allow a *durable partial
+  state* in which one axis stands without the other. Where the two cannot be
   established in a single atomic step, the wallet MUST complete or repair the
   missing half -- at the latest on a re-run of the exchange
   ([[[#resumability]]]) -- and MUST NOT report the share as granted until both
@@ -826,7 +843,7 @@ fetch its ciphertext.
 Granting only the capability would hand the application ciphertext it cannot
 open, which surfaces to a user as corrupt data rather than as a failed share.
 Granting only recipiency would leave a reader in the roster with no way to
-fetch. Both halves are load-bearing.
+fetch.
 
 **A share covers what is already stored.** Recipient status on the current
 epoch lets the grantee decrypt the collection's existing contents, not only what
@@ -842,7 +859,7 @@ rotating the collection to a new key epoch and admitting the grantee to that
 epoch alone; the epoch construction that makes this possible is defined in
 [[WAS-EC]].
 
-**Revocation of a share is an explicit act, never an expiry.** A [=wallet=]
+**Revocation of a share is an explicit act.** A [=wallet=]
 MUST NOT rely on the delegated capability's lifetime as the removal mechanism
 for a share: expiry ends the fetch axis while leaving the grantee an
 epoch-roster recipient, which is precisely the unfused state the fusion rule
@@ -850,42 +867,28 @@ exists to prevent. Removing a share MUST re-epoch the collection off the
 removed recipient and revoke the capability as one operation. See also
 [[[#ttl]]].
 
-#### `#space` {#descriptor-space}
-
-`https://w3id.org/byoe#space` requests the whole [=Space=] as a target. It
-resolves to the Space URL, and its ceiling is read-only.
-
-The read-only ceiling is unconditional: a Space-wide write capability would
-authorize rewriting the Space Description, and therefore controller takeover.
-
-<div class="note">
-The shipped application-side implementation never emits this descriptor, and
-its grant parser rejects a capability that is not collection-scoped. It is
-specified because a wallet must bound it correctly if some other requester does
-emit it.
-</div>
-
 ### Reserved descriptor types {#descriptor-reserved}
 
-The following type IRIs are **reserved**. This document defines no behavior for
+The following type IRIs are reserved. This document defines no behavior for
 them; they are recorded here so that no other specification, profile, or
 implementation assigns them different semantics.
 
-| Reserved type IRI | Reserved for |
-|-------------------|--------------|
+| Reserved type IRI                          | Reserved for                                                                                            |
+|--------------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `https://w3id.org/byoe#managed-collection` | A future write-bearing grant class for applications acting as the authoritative writer of a collection. |
-| `https://w3id.org/byoe#publish-collection` | A future standing publication grant. |
-| `https://w3id.org/byoe#collection-policy` | A future runtime access-policy control descriptor. |
+| `https://w3id.org/byoe#publish-collection` | A future standing publication grant.                                                                    |
+| `https://w3id.org/byoe#collection-policy`  | A future runtime access-policy control descriptor.                                                      |
+| `https://w3id.org/byoe#space`              | A future Space-scoped read grant; this profile grants collection-scoped access only ([[[#string-targets]]]). |
 
 Until this document (or a successor) defines them, a reserved type is an
 unrecognized type and MUST be processed per [[[#unknown-descriptor-type]]]:
-a wallet that predates such a feature resolves it unsatisfiable and refuses
+a wallet that predates such a feature resolves it [=unsatisfiable=] and refuses
 visibly.
 
 ### Unrecognized descriptor types {#unknown-descriptor-type}
 
 A [=wallet=] MUST resolve **any** `invocationTarget` descriptor whose `type` it
-does not recognize as **unsatisfiable**.
+does not recognize as [=unsatisfiable=].
 
 A wallet MUST NOT fall back to a related recognized type, MUST NOT strip the
 type and treat the descriptor as a plain collection request, and MUST NOT
@@ -897,9 +900,9 @@ makes new descriptor types deployable at all. The application-side reasoning
 runs the other way around: an application that asks for a
 `#public-collection` and is answered by a wallet that predates the type sees a
 visible refusal, and knows its collection was not created. If the wallet had
-instead degraded the request to `#collection`, the application would have been
+instead degraded the request to `#private-collection`, the application would have been
 handed a *private* collection it believes is public, and would publish into it.
-The same argument covers `#shared-collection`, whose fused axes cannot be
+The same argument covers `#shared-wallet-collection`, whose fused axes cannot be
 partially honored, and the `AppConnectQuery` type itself
 ([[[#wallet-unsupported]]]).
 </div>
@@ -910,39 +913,45 @@ A capability request MAY carry an absolute URL string as its
 `invocationTarget`. A [=wallet=] MUST resolve it as follows.
 
 The wallet MUST parse both the target and its own Space URL as URLs, and MUST
-resolve the target **unsatisfiable** if any of the following holds:
+resolve the target [=unsatisfiable=] if any of the following holds:
 
 1. either value does not parse as an absolute URL;
 2. the target carries a **query** component;
 3. the target carries a **fragment** component;
 4. the target's origin differs from the Space URL's origin;
 5. after resolving dot segments and trimming trailing slashes, the target's
-   path is neither equal to the Space path nor a descendant of it.
+   path is not a strict descendant of the Space path. In particular, a target
+   naming the Space itself is [=unsatisfiable=]: this profile grants
+   collection-scoped access only ([[[#descriptor-reserved]]]).
 
-Otherwise:
-
-* if the target's path equals the Space path (with or without a trailing
-  slash), the target is the Space itself, resolved with the *space* class and
-  its read-only ceiling;
-* otherwise the first path segment after the Space path is the collection id.
-  It MUST match the collection name grammar ([[[#collection-name-grammar]]]) or
-  the target resolves unsatisfiable. The resolved class is *protected
-  collection* if that id names a protected collection
-  ([[[#protected-collections]]]), and *collection* otherwise.
+Otherwise the first path segment after the Space path is the collection id.
+It MUST match the collection name grammar ([[[#collection-name-grammar]]]) or
+the target resolves [=unsatisfiable=]. The resolved class is *protected
+collection* if that id names a protected collection
+([[[#protected-collections]]]), and *collection* otherwise.
 
 A string target MUST NOT cause provisioning: it names something the wallet
 either already has or does not.
 
 <div class="note">
-Rules 2 and 3 refuse rather than rewrite. A [[WAS]] resource URL carries
-neither a query nor a fragment, so a target that has one is not a target the
-server would route as written; and silently dropping part of a target the user
-is about to approve would show the user something other than what gets
-delegated. Rules 4 and 5 together are why string matching alone is not enough:
+Rules 2 and 3 refuse rather than rewrite. A [[WAS]] server authorizes a
+request by matching the capability's target against the request URL's scheme,
+host, port, and path alone: a query string is a request modifier (pagination,
+for instance), not part of the target's identity, and a fragment never
+reaches the server at all. A target carrying either could therefore never
+participate in authorization -- the grant would be dead on arrival. And
+silently dropping the offending part of a target the user is about to approve
+would show the user something other than what gets delegated. Rules 4 and 5 together are why string matching alone is not enough:
 `<spaceUrl>/private-credentials?x=1` starts with the Space URL but its first
 routed segment is not the collection id it appears to name, and
 `<spaceUrl>/../other-space/x` starts with the Space URL while pointing outside
-the Space entirely.
+the Space entirely. Rule 5 also refuses the Space URL itself. Space-wide
+grants are a hazard class of their own -- a Space-wide write capability would
+authorize rewriting the Space Description, and therefore controller takeover
+-- and no application this profile addresses can route one
+([[[#grant-validation]]]), so the profile does not define them; the type IRI a
+future Space-scoped read grant would use is reserved
+([[[#descriptor-reserved]]]).
 </div>
 
 ### Collection name grammar {#collection-name-grammar}
@@ -956,49 +965,51 @@ path segment of a string target, MUST match:
 
 That is: lowercase ASCII letters and digits and the hyphen, not starting with a
 hyphen, between 1 and 64 characters. A name that does not match resolves the
-descriptor unsatisfiable.
+descriptor [=unsatisfiable=].
 
 ### Protected collections {#protected-collections}
 
 A [=wallet=] MUST maintain a set of **protected collections**: the collections
 in the user's Space that hold the user's own wallet data and the account's
-system state. At minimum this set MUST include:
+system state. This MAY include:
 
 * the wallet's own standard content collections -- the collections the wallet
   itself writes the user's credentials, activity, and application-domain data
-  into; and
+  into;
 * the account's system collections -- those holding the account's published
   identity artifacts and its key material.
 
 Requests resolving onto a protected collection are bounded as follows:
 
-* the resolved class is *protected collection*, whose ceiling is read-only
-  ([[[#action-ceilings]]]). A requesting party may read the user's own data
+* the resolved class is *protected collection*, whose allowed actions are
+  read-only ([[[#allowed-actions]]]). A requesting party may read the user's
+  own data
   when the user consents, and may never rewrite or delete it;
-* a `#public-collection` descriptor naming one MUST resolve unsatisfiable
+* a `#public-collection` descriptor whose `name` resolves to a protected
+  collection MUST resolve [=unsatisfiable=]
   ([[[#descriptor-public-collection]]]);
 * a wallet MUST NOT provision over one.
 
-A `#shared-collection` descriptor naming an encrypted protected collection is
+A `#shared-wallet-collection` descriptor naming an encrypted protected collection is
 the intended way for an application to be given read access to the user's own
 data, and resolves in the *share* class rather than the *protected collection*
-class. Both ceilings are read-only, so the distinction affects only the
+class. Both classes are read-only, so the distinction affects only the
 decrypt axis and the consent copy.
 
 ## The App Key Credential {#app-key-credential}
 
 ### Purpose {#app-key-purpose}
 
-An [=application=] under this profile is a [=public client=] -- an
-application running entirely in the browser being the canonical case -- and
+An [=application=] under this profile is a [=public client=] (an
+application running entirely in the browser being the canonical case) and
 has nowhere durable and trustworthy to keep a secret of its own. The
 [=app-key credential=] answers
 this by moving custody: the wallet holds the application's [=seed=] as an
 ordinary credential in the user's wallet, and returns it to the same
-application -- same [=origin=], same `appUrl` -- on every connect. The
-application's
-identity is therefore stable **by custody**, not because the application
-managed to hold onto anything.
+application, same [=origin=], same `appUrl`, on every connect. This extends
+what a [=public client=] can ordinarily do: the application gains a stable,
+long-lived identity even though it retains no secret of its own between
+visits.
 
 The credential is self-issued and self-authenticating: its issuer, its subject,
 and the DID derived from the seed it carries are all the same value
@@ -1014,75 +1025,54 @@ this order:
 ["VerifiableCredential", "AppKeyCredential"]
 ```
 
-`AppKeyCredential` is the **marker type**. It makes "presents as an app key" a
+The `AppKeyCredential` type makes "presents as an app key" a
 term check rather than a shape heuristic, which is what the store-time refusal
 ([[[#store-time-refusal]]]) and the match predicate
 ([[[#app-key-matching]]]) key off.
 
 The type array is identical for every application: nothing in the credential's
-vocabulary is application-scoped. Which application a credential belongs to is
-a claim -- `credentialSubject.appUrl` -- not a type.
+vocabulary is application-scoped.
 
 ### Term URLs {#app-key-urls}
 
-| Term | URL |
-|------|-----|
+| Term               | URL                                      |
+|--------------------|------------------------------------------|
 | `AppKeyCredential` | `https://w3id.org/byoe#AppKeyCredential` |
-| `appUrl` | `https://w3id.org/byoe#appUrl` |
-| `seed` | `https://w3id.org/byoe#seed` |
-| `origin` | `https://w3id.org/byoe#origin` |
-| `name` | `https://schema.org/name` |
-| `description` | `https://schema.org/description` |
+| `appUrl`           | `https://w3id.org/byoe#appUrl`           |
+| `seed`             | `https://w3id.org/byoe#seed`             |
+| `origin`           | `https://w3id.org/byoe#origin`           |
+| `name`             | `https://schema.org/name`                |
+| `description`      | `https://schema.org/description`         |
 
 Every term is shared by every application and means the same thing for each.
-The marker term URL in particular is **one stable URL for every application**:
-an application-scoped marker would assert a different thing for each
-application, and the one rule that makes a store-time refusal possible ("this
-credential claims to be an app key") would no longer be expressible.
 
 <div class="note">
-**The marker is a self-declaration, not evidence.** The `type` array of a
-planted credential is attacker-controlled like the rest of it. The marker makes
-the profile's rules precise -- it is what a refusal and a match can be stated
-over -- but the only thing that *authenticates* an app-key credential is the
-seed-to-subject binding in [[[#seed-binds-subject]]].
+The `AppKeyCredential` type is a self-declaration, not evidence: see
+[[[#security-planted-credential]]].
 </div>
 
-### The inline context {#app-key-context}
+### The context {#app-key-context}
 
-The credential's `@context` MUST be an array whose first entry is the VC 1.1
-context URL and whose second entry is an inline term-definition object of
-exactly this shape:
+The credential's `@context` MUST be an array whose first two entries are, in
+this order:
 
 ```json
-{
-  "@protected": true,
-  "AppKeyCredential": "https://w3id.org/byoe#AppKeyCredential",
-  "appUrl": "https://w3id.org/byoe#appUrl",
-  "seed": "https://w3id.org/byoe#seed",
-  "origin": "https://w3id.org/byoe#origin",
-  "name": "https://schema.org/name",
-  "description": "https://schema.org/description"
-}
+[
+  "https://www.w3.org/2018/credentials/v1",
+  "https://w3id.org/byoe/app-connect/v1"
+]
 ```
 
-Nothing in the object varies: it is byte-identical for every application and
-every credential.
-
-Carrying the terms inline, rather than by reference to a hosted context, is
-deliberate: the credential stays verifiable with no remote vocabulary fetch and
-no document-loader configuration on either side, which matters because both
-parties verify it offline of each other.
+The second entry is the context document that defines the BYOE terms of this
+profile as a whole: the credential's terms, mapped to the URLs of
+[[[#app-key-urls]]], and the response presentation's `zcap` and `appConnect`
+members ([[[#response-members]]]).
+Verifiers resolve it through their document loader like any other static
+context; loaders that bundle contexts for offline use pin it by URL, so
+verification requires no fetch at verification time.
 
 The signature suite appends its own context entry when the credential is
 signed; that entry is the suite's, not this profile's.
-
-<div class="note">
-The term URLs used above are also published as a context document at
-`https://w3id.org/byoe/app-connect/v1`, which defines the BYOE terms of this
-profile as a whole. Implementations may source the term URLs from it, but the
-credential as it appears on the wire carries the object above inline.
-</div>
 
 ### Seed encoding {#seed-encoding}
 
@@ -1171,11 +1161,11 @@ on the grounds that some other check passed.
 This rule is checked at three moments, and a conformant implementation MUST
 apply it at each:
 
-| Moment | Party | Consequence of failure |
-|--------|-------|------------------------|
-| Match time | Wallet | The credential is not a candidate; the wallet mints a fresh one instead. |
-| Store time | Wallet | The credential is refused at ingest ([[[#store-time-refusal]]]). |
-| Parse time | Application | The response is rejected ([[[#app-key-parsing]]]). |
+| Moment     | Party       | Consequence of failure                                                   |
+|------------|-------------|--------------------------------------------------------------------------|
+| Match time | Wallet      | The credential is not a candidate; the wallet mints a fresh one instead. |
+| Store time | Wallet      | The credential is refused at ingest ([[[#store-time-refusal]]]).         |
+| Parse time | Application | The response is rejected ([[[#app-key-parsing]]]).                       |
 
 <div class="note">
 Self-issuance alone is a weak signal, because anyone can self-issue. The
@@ -1186,12 +1176,12 @@ third party.
 **What the binding does and does not establish.** It establishes internal
 consistency: that this credential's subject is the DID of the seed this
 credential carries. It therefore rejects any credential in which the subject or
-the seed has been substituted -- a genuine credential with the seed swapped
-out, or an attacker's subject DID pasted over a genuine seed -- because either
+the seed has been substituted (a genuine credential with the seed swapped
+out, or an attacker's subject DID pasted over a genuine seed) because either
 substitution breaks the derivation.
 
-It does **not** establish provenance, and it is important not to read it as
-doing so. An attacker who generates their own seed, derives its DID honestly,
+It does not establish provenance, and it is important not to read it as
+doing so. An attacker who generates their own seed, derives its DID correctly,
 and self-issues a credential naming the victim's [=origin=] and the victim
 application's `appUrl` produces a credential that binds perfectly well.
 Nothing local can tell that credential from a legitimate one, because it *is* a
@@ -1203,21 +1193,23 @@ rule.
 ### Matching {#app-key-matching}
 
 To find the [=app-key credential=] for a request, a [=wallet=] MUST select from
-its stored credentials those satisfying **all** of:
+its stored credentials those satisfying *all* of:
 
-1. the `type` array includes the `AppKeyCredential` marker;
+1. the `type` array includes the `AppKeyCredential` type;
 2. `credentialSubject.appUrl` equals the request's `app.appUrl`, both in
    serialized form ([[[#appconnectquery]]]);
 3. `issuer` is present and equals `credentialSubject.id`;
 4. `credentialSubject.origin` equals the attested requesting [=origin=];
 5. the credential binds per [[[#seed-binds-subject]]].
 
-The marker is **required** at match time, not merely tolerated. Requiring it
-means a credential can only reach the delegation path by carrying the marker,
-which is exactly what the store-time refusal screens.
+Criterion 1 is what couples this rule to the store-time refusal: carrying that
+type is the only way a credential reaches the delegation path, and
+type-bearing credentials are exactly the ones [[[#store-time-refusal]]]
+keeps out of the wallet's store -- so a credential that matches here was
+minted by this wallet.
 
 When more than one credential qualifies, the wallet MUST rank the qualifying
-credentials **latest-first by the instant their `issuanceDate` denotes** and
+credentials latest-first by the instant their `issuanceDate` denotes and
 use the first. Ranking MUST be over instants, not over the literal strings: a
 wallet MUST parse each `issuanceDate` as a date-time and compare the resulting
 instants. A credential whose `issuanceDate` is absent or does not parse MUST
@@ -1243,21 +1235,21 @@ spelling.
 When none qualifies, the wallet MUST mint a fresh credential
 ([[[#app-key-minting]]]) and MUST report first run ([[[#first-run]]]).
 
-### Minting {#app-key-minting}
+### App Key Credential Minting {#app-key-minting}
 
 To mint an [=app-key credential=], a [=wallet=] MUST:
 
 1. generate 32 bytes from a cryptographically secure random source;
 2. derive the [=connecting DID=] from them per [[[#key-derivation]]];
 3. assemble the credential with the type array of
-   [[[#app-key-type-array]]], the inline context of [[[#app-key-context]]],
+   [[[#app-key-type-array]]], the context array of [[[#app-key-context]]],
    `issuer` and `credentialSubject.id` both set to the derived DID,
    `credentialSubject.seed` encoded per [[[#seed-encoding]]],
    `credentialSubject.appUrl` set to the request's `app.appUrl` in serialized
    form ([[[#appconnectquery]]]), and
    `credentialSubject.origin` set to the attested requesting origin;
 4. sign it with a signature suite the application can verify, using a signer
-   for the seed-derived key -- so that the credential is genuinely self-issued;
+   for the seed-derived key, so that the credential is genuinely self-issued;
 5. store it in the user's wallet before delegating.
 
 Storing before delegating makes the operation resumable: if delegation fails,
@@ -1272,7 +1264,8 @@ their content beyond their term URLs ([[[#app-key-urls]]]).
 
 <div class="note">
 The wallet mints the seed, rather than the application minting one and asking
-the wallet to store it. This is what removes the second popup: a
+the wallet to store it. This is what removes the second round trip (and in cases
+of in-browser CHAPI transport, a second popup): a
 store-then-request flow needs one exchange to deposit the key and another to
 ask for grants, and it also means the seed exists application-side before the
 user has consented to anything.
@@ -1285,24 +1278,26 @@ user has consented to anything.
 minting it during an App Connect exchange ([[[#app-key-minting]]]).
 
 Accordingly, a [=wallet=] MUST refuse to store any credential that carries the
-`AppKeyCredential` marker and did not originate in an [=App Connect exchange=]
+`AppKeyCredential` type and did not originate in an [=App Connect exchange=]
 this wallet performed. The refusal MUST NOT depend on whether the credential binds
-per [[[#seed-binds-subject]]]: a marker-carrying credential arriving from
-outside is refused **whether or not** it is internally consistent.
+per [[[#seed-binds-subject]]]: credential carrying the `AppKeyCredential` type
+arriving from outside is refused regardless of whether it is internally
+consistent.
 
 The refusal MUST be applied at every path by which a credential enters the
-wallet's store from outside -- a credential offered over the transport, or
+wallet's store from outside: a credential offered over the transport, or
 imported from a URL, a QR code, a file, or a paste.
 
-A [=wallet=] MUST additionally refuse to store a marker-carrying credential that
-does not bind per [[[#seed-binds-subject]]], on any path whatsoever. The two
-refusals are independent, and either one alone is sufficient grounds to refuse.
+A [=wallet=] MUST additionally refuse to store an `AppKeyCredential`-typed
+credential that does not bind per [[[#seed-binds-subject]]], on any path
+whatsoever. The two refusals are independent, and either one alone is enough
+reason to refuse.
 
-A credential that does **not** carry the marker MUST NOT be caught by these
+A credential that does *not* carry that type MUST NOT be caught by these
 rules, even if it happens to carry a `seed` or `origin` claim.
 
 <div class="note">
-The provenance rule is the load-bearing one, and it is stricter than checking
+This provenance rule is stricter than checking
 the credential's internal consistency because internal consistency is not the
 property under attack. An attacker can mint a perfectly well-formed app-key
 credential for their own seed, name the victim application's `appUrl`
@@ -1319,7 +1314,7 @@ credential has no legitimate reason to arrive from outside, so a wallet that
 never accepts one from outside is never in a position to have to tell the two
 apart.
 
-The binding refusal is retained alongside it as defence in depth, covering
+The binding refusal is retained alongside it as defense in depth, covering
 credentials already stored under an earlier, weaker rule, and any path a wallet
 might later add.
 </div>
@@ -1337,15 +1332,7 @@ might apply a weaker check than the match predicate does.
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
-    {
-      "@protected": true,
-      "AppKeyCredential": "https://w3id.org/byoe#AppKeyCredential",
-      "appUrl": "https://w3id.org/byoe#appUrl",
-      "seed": "https://w3id.org/byoe#seed",
-      "origin": "https://w3id.org/byoe#origin",
-      "name": "https://schema.org/name",
-      "description": "https://schema.org/description"
-    },
+    "https://w3id.org/byoe/app-connect/v1",
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
   "id": "urn:uuid:3f2a8c40-9d51-4e0b-9f1c-5c6d0a2b7e34",
@@ -1379,33 +1366,51 @@ cryptographically random seed and the DID genuinely derived from it
 
 ## The Response Presentation {#response}
 
-### Members {#response-members}
+### Response Members {#response-members}
 
 A [=wallet=] answering an App Connect request MUST return a single Verifiable
 Presentation carrying:
 
-| Member | Value |
-|--------|-------|
-| `verifiableCredential` | An array containing the matched or minted [=app-key credential=]. |
-| `zcap` | An array of the delegated [=grants=]. Omitted when no grant was made. |
-| `appConnect` | `{ "firstRun": <boolean> }`. See [[[#first-run]]]. |
+| Member                 | Value                                                                 |
+|------------------------|-----------------------------------------------------------------------|
+| `verifiableCredential` | An array containing the matched or minted [=app-key credential=].     |
+| `zcap`                 | An array of the delegated [=grants=]. Omitted when no grant was made. |
+| `appConnect`           | `{ "firstRun": <boolean> }`. See [[[#first-run]]].                    |
 
-The `zcap` array holds one entry per **satisfiable** request entry that was
-approved. Unsatisfiable and declined entries produce no entry, so the array is
-in general shorter than the request's `capabilityQuery` and is not index-aligned
-with it; see [[[#reference-id]]] for how an application correlates the two.
+The `zcap` array holds one entry per satisfiable request entry that was
+approved. [=Unsatisfiable=] and declined entries produce no response entry, so
+the array is in general shorter than the request's `capabilityQuery` and is not
+index-aligned with it; see [[[#reference-id]]] for how an application correlates
+the two.
 
 Whichever of these members the response carries MUST be added to the
-presentation **before** it is signed, so that the authentication proof covers
-them. A wallet MUST NOT append grants or the `appConnect` marker to an
-already-signed presentation. A member that is empty is omitted, together with
-its `@context` term definition ([[[#response-context]]]); omission is not a way
-to add it later.
+presentation *before* it is signed, so that the authentication proof covers
+them. A wallet MUST NOT append grants or the `appConnect` member to an
+already-signed presentation. A member that is empty is omitted; omission is
+not a way to add it later.
 
-The presentation is signed by the **wallet's** holder DID, not by the
-[=connecting DID=]. The wallet is the party answering the challenge -- it is
-the one attesting that this response left this wallet for this domain -- so it
-is the holder. The two attestations are separate and complementary: the
+When the response carries either member, the wallet MUST append the profile's
+context, `https://w3id.org/byoe/app-connect/v1` ([[[#app-key-context]]]), to
+the presentation's `@context` before signing. The context defines the `zcap`
+and `appConnect` terms, which is what allows JSON-LD safe-mode
+canonicalization [[JSON-LD11]] to include the members in the signed payload
+rather than reject them; `appConnect` is typed `@json` there, so its contents
+canonicalize as one opaque literal. Because the context is appended before
+signing, the signature suite's own entry, appended by the suite when the
+presentation is signed, follows it in the resulting `@context` array.
+
+Only the top-level terms are defined. The embedded capabilities' own
+sub-vocabularies MUST NOT be hoisted into the presentation context; each
+embedded capability self-describes through its own `@context`.
+
+The presentation is signed by the wallet account's own DID, the value of the
+presentation's `holder` property, not by the [=connecting DID=]. This is the
+identity the wallet holds for the user, typically the same identity that
+controls the user's [=Space=]; per [[[#identity-model-agnosticism]]], this
+profile never inspects it, and the application checks only that the
+authentication proof answers its challenge and domain. The wallet is the
+party answering the challenge. It is the one attesting that this response
+left this wallet for this domain, so it is the holder. The two attestations are separate and complementary: the
 authentication proof attests that this wallet answered this challenge from this
 domain, and the [=app-key credential=]'s self-issued proof plus the
 seed-to-subject binding attest the identity being handed over.
@@ -1414,53 +1419,13 @@ Each entry in `zcap` is a self-contained delegated capability carrying its own
 `@context` and its own delegation proof; the entries self-authenticate
 independently of the presentation's proof.
 
-### Context terms {#response-context}
-
-When embedding grants, a wallet MUST append to the presentation's `@context` a
-term-definition object defining `zcap`:
-
-```json
-{
-  "@protected": true,
-  "zcap": { "@id": "https://w3id.org/byoe#zcap", "@container": "@set" }
-}
-```
-
-When embedding the App Connect marker, a wallet MUST append a term-definition
-object defining `appConnect`:
-
-```json
-{
-  "@protected": true,
-  "appConnect": { "@id": "https://w3id.org/byoe#appConnect", "@type": "@json" }
-}
-```
-
-Both term definitions are appended **before** signing ([[[#response-members]]]),
-so the signature suite's own context entry -- appended by the suite when the
-presentation is signed -- follows them in the resulting `@context` array. A
-member that is omitted takes its term definition with it.
-
-Only the top-level terms are defined. The embedded capabilities' own
-sub-vocabularies MUST NOT be hoisted into the presentation context; each
-embedded capability self-describes through its own `@context`.
-
-Defining the terms is what allows JSON-LD safe-mode canonicalization
-[[JSON-LD11]] to include the grants and the marker in the signed payload rather
-than reject them, which is what makes "the proof covers them" true rather than
-aspirational. The `appConnect` value is typed `@json` so that its contents
-canonicalize as one opaque literal.
-
-These IRIs are byte-significant: they are canonicalized into the authentication
-proof.
-
-### The firstRun marker {#first-run}
+### The firstRun member {#first-run}
 
 A [=wallet=] MUST set `appConnect.firstRun` to `true` if and only if it minted
 a new [=app-key credential=] during this exchange, and to `false` when it
 matched an existing one.
 
-An [=application=] MUST treat **only** the boolean value `true` as first run.
+An [=application=] MUST treat *only* the boolean value `true` as first run.
 An absent `appConnect` member, an absent `firstRun` member, and any non-boolean
 or `false` value all mean "not first run".
 
@@ -1474,8 +1439,9 @@ An [=application=] MUST perform the following steps, in this order, and MUST
 abort on the first failure.
 
 1. **Verify the presentation cryptographically.** Verify the presentation
-   proof and every embedded credential proof. Issuer-registry lookup MUST NOT
-   be required: the [=app-key credential=] is self-issued by design.
+   proof and every embedded credential proof. For the [=public clients=] this
+   document profiles, issuer-registry lookup MUST NOT be required: the
+   [=app-key credential=] is self-issued by design.
 
 2. **Check the proof's purpose, challenge, and domain.** The presentation MUST
    carry at least one presentation-level proof. Every presentation-level proof
@@ -1486,25 +1452,26 @@ abort on the first failure.
    <div class="note">
    Requiring *every* presentation-level proof to be an authentication proof,
    rather than just finding one, is deliberate. A verifier selects one proof
-   purpose for the whole set and skips the rest; a presentation ordered
-   `[assertionMethod, authentication]` could therefore verify under the
-   assertion purpose with the authentication proof -- the only freshness bind
-   -- never signature-checked, while the challenge and domain read off it
-   anyway.
+   purpose for the whole set and skips the rest. Consider a presentation
+   ordered `[assertionMethod, authentication]`: the verifier could verify it
+   under the assertion purpose and not signature-check the authentication
+   proof (the only freshness bind) while still reading the challenge and
+   domain off it.
    </div>
 
 3. **Locate the app-key credential.** Search the embedded credentials for one
    whose `credentialSubject.appUrl` equals the `app.appUrl` this request sent.
-   The `AppKeyCredential` marker MUST NOT be required at this step.
+   The `AppKeyCredential` type MUST NOT be required at this step.
 
    If no such credential is present, the outcome is
    [[[#wallet-unsupported]]].
 
    <div class="note">
-   Matching on the `appUrl` claim alone, and requiring the marker only
-   at the next step, is what keeps "the wallet returned a credential that is
-   wrong" from being indistinguishable from "the wallet returned nothing". If
-   the marker were required here, a returned credential missing it would look
+   Matching on the `appUrl` claim alone, and requiring the `AppKeyCredential`
+   type only at the next step, is what keeps "the wallet returned a credential
+   that is wrong" from being indistinguishable from "the wallet returned
+   nothing". If the type were required here, a returned credential missing it
+   would look
    like an absent credential, and an application that reads absence as first
    run would answer by minting a second key.
    </div>
@@ -1518,10 +1485,10 @@ abort on the first failure.
 
 ### App-key parse checks {#app-key-parsing}
 
-At step 4 above, an [=application=] MUST enforce **all** of the following, and
+At step 4 above, an [=application=] MUST enforce *all* of the following, and
 MUST reject the response if any fails:
 
-1. the `type` array includes the `AppKeyCredential` marker;
+1. the `type` array includes `AppKeyCredential`;
 2. `credentialSubject.appUrl` equals the `app.appUrl` this application sent in
    the request, compared as an **exact string**;
 3. `issuer` is present, `credentialSubject.id` is present, and they are equal;
@@ -1532,14 +1499,14 @@ MUST reject the response if any fails:
 6. the [=connecting DID=] derived from those bytes per [[[#key-derivation]]]
    equals `credentialSubject.id`.
 
-The origin value used in check 4 MUST be the **same value** the application sent
-as the request's `domain` ([[[#challenge-and-domain]]]): its own live browser
-origin. An application MUST NOT check the credential against one origin while
-having requested under another, and MUST NOT take either value from
+The origin value used in check 4 MUST be the same value the application sent
+as the request's `domain` ([[[#challenge-and-domain]]]) (its own live browser
+origin). An application MUST NOT check the credential against one origin while
+having requested under another, and MUST NOT take either value from a
 configuration that can drift from the origin it is actually running on.
 
 These checks duplicate checks the wallet already made. That is the point: they
-are defence in depth, and an application that omits them is trusting the wallet
+are defense in depth, and an application that omits them is trusting the wallet
 about an origin binding and an identity binding that it is fully able to check
 itself.
 
@@ -1551,69 +1518,71 @@ At step 5 of [[[#response-verification]]], an [=application=] MUST check that:
    credential;
 2. every grant carries an `expires` value that is a string and is not already
    past;
-3. every grant's `invocationTarget` is a **single non-empty string**. A grant
+3. every grant's `invocationTarget` is a single non-empty string. A grant
    whose `invocationTarget` is absent, is not a string, or is an array of
    targets MUST be rejected;
 4. every grant's target parses under the [[WAS]] URL template
-   ([[[#url-template]]]) and is **collection-scoped** -- that is, it names a
+   ([[[#url-template]]]) and is collection-scoped -- that is, it names a
    [=collection=] or a [=resource=] within one. A Space-scoped target, or a
    target naming a reserved sub-endpoint rather than a collection, MUST be
    rejected;
-5. all grants resolve to a **single** storage host and a **single** [=Space=];
+5. all grants resolve to a single storage host and a single [=Space=];
    a grant set spanning two hosts or two Spaces MUST be rejected;
-6. every collection the application requested as its **own** (that is, via
-   `#collection` or `#public-collection`) is covered by a grant whose
+6. every collection the application requested as its own (that is, via
+   `#private-collection` or `#public-collection`) is covered by a grant whose
    `allowedAction` includes every action the application requires of it, per
    [[[#required-actions]]];
-7. at least one grant is present, whenever the application requested at least
+7. at least one grant is present whenever the application requested at least
    one of its own collections.
 
-Delegation-chain validity is **not** the application's to check: it is enforced
+Delegation-chain validity is *not* the application's to check: it is enforced
 by the storage server at invocation time, per [[WAS]]. What the application
 checks is structure.
 
 <div class="note">
-Check 4 is stricter than this profile requires a wallet to be: a wallet may in
-principle satisfy a `#space` descriptor ([[[#descriptor-space]]]) and emit a
-Space-scoped grant. An application rejects it anyway, because its routing is
+Check 4 mirrors the wallet side: no descriptor resolves to a Space-scoped
+target, and a string target naming the Space itself is [=unsatisfiable=]
+([[[#string-targets]]]), so a conformant wallet never emits a Space-scoped
+grant. The application rejects one anyway, because its routing is
 per-collection and it has nothing to do with a target it cannot route. An
 application that wants Space-scoped access is outside the scope of this
-version.
+version ([[[#descriptor-reserved]]]).
 </div>
 
-#### Required actions and the class ceiling {#required-actions}
+#### Required actions and the class's allowed actions {#required-actions}
 
 The actions an [=application=] requires of a collection MUST be within the
-action ceiling of the descriptor class it used to request that collection
-([[[#action-ceilings]]]):
+allowed actions of the descriptor class it used to request that collection
+([[[#allowed-actions]]]):
 
-| Requested via | Actions the application may require |
-|---------------|--------------------------------------|
-| `#collection` | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
-| `#public-collection` | any subset of `GET`, `HEAD`, `POST` |
+| Requested via         | Actions the application may require                  |
+|-----------------------|------------------------------------------------------|
+| `#private-collection` | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
+| `#public-collection`  | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
 
-An application MUST NOT require an action above the ceiling of the class it
-requested, and MUST NOT fail a connection because a grant lacks such an action.
+An application MUST NOT require an action outside the allowed actions of the
+class it requested, and MUST NOT fail a connection because a grant lacks such an
+action.
 
 <div class="note">
-Without this rule the two conformance classes contradict each other. An
-application that asks for a public collection with a default read/write action
-set, and then requires every action it asked for, rejects the `GET, HEAD, POST`
-grant that a **correct** wallet is obliged to return -- the public-collection
-ceiling forbids `PUT` and `DELETE` ([[[#descriptor-public-collection]]]), so no
-conformant wallet can ever satisfy the requirement. An application requesting a
-public collection is expected to require at most add-only access, which is what
-a public collection offers.
+Both collection classes currently allow the full action vocabulary, so today
+this rule bounds nothing. It exists so the two conformance classes cannot
+contradict each other when a class *does* bound actions -- as future
+descriptor classes may ([[[#descriptor-registry]]]). An application that
+required an action its class never allows would reject the capped grant that a
+**correct** wallet is obliged to return, so no conformant wallet could ever
+satisfy it.
 </div>
 
 ### Declined shares {#declined-shares}
 
-A `#shared-collection` [=grant=] MUST NOT be login-gating. If the user declines
-a share, or the wallet resolves it unsatisfiable, the connection MUST still
-succeed: the application simply does not open a reader for that collection.
+A `#shared-wallet-collection` [=grant=] SHOULD NOT be login-gating. If the user
+declines a share, or the wallet resolves it [=unsatisfiable=], the connection
+SHOULD still succeed: the application simply does not open a reader for that
+collection.
 
-An application MUST NOT include shared collections in the coverage check of
-[[[#grant-validation]]] step 6, and MUST tolerate a response in which it
+An application SHOULD NOT include shared collections in the coverage check of
+[[[#grant-validation]]] step 6, and SHOULD tolerate a response in which it
 requested only shared collections and received no grants at all.
 
 A share is the user granting access to their *own* data. Declining it is a
@@ -1623,7 +1592,7 @@ wants to use the application.
 ### The wallet-unsupported outcome {#wallet-unsupported}
 
 If the presentation verifies but carries no [=app-key credential=], an
-[=application=] MUST treat this as a **distinct fail-closed outcome**: the
+[=application=] MUST treat this as a *distinct fail-closed outcome*: the
 wallet could not satisfy the `AppConnectQuery`.
 
 This outcome MUST be distinguished from:
@@ -1643,21 +1612,11 @@ identity and no grants while believing itself connected.
 {
   "@context": [
     "https://www.w3.org/2018/credentials/v1",
-    {
-      "@protected": true,
-      "zcap": { "@id": "https://w3id.org/byoe#zcap", "@container": "@set" }
-    },
-    {
-      "@protected": true,
-      "appConnect": {
-        "@id": "https://w3id.org/byoe#appConnect",
-        "@type": "@json"
-      }
-    },
+    "https://w3id.org/byoe/app-connect/v1",
     "https://w3id.org/security/suites/ed25519-2020/v1"
   ],
   "type": ["VerifiablePresentation"],
-  "holder": "did:web:wallet.example",
+  "holder": "did:webvh:QmExampleWalletAccountScidPlaceholder:wallet.example",
   "verifiableCredential": [
     {
       "type": ["VerifiableCredential", "AppKeyCredential"],
@@ -1717,19 +1676,16 @@ appears. Per [[[#declined-shares]]] the connection still succeeds.
 
 Grant processing has two phases, and a [=wallet=] MUST keep them separate:
 
-1. **Resolution** is pure. Each request entry is resolved to a target class and
-   a capped action set ([[[#descriptors]]], [[[#action-ceilings]]]) with no
-   provisioning, no delegation, and no side effects. Resolution is what the
-   consent surface renders.
+1. **Resolution** has no side effects. Each request entry is resolved to a
+   target class and a capped action set ([[[#descriptors]]],
+   [[[#allowed-actions]]]) with no provisioning and no delegation. Resolution
+   is what the consent surface renders.
 2. **Delegation** runs only after the user approves. It provisions what needs
    provisioning ([[[#provisioning]]]) and delegates each satisfiable grant.
 
-A wallet MUST NOT show the user one resolution and then delegate a different
-one.
-
 Every delegation MUST be rooted at the user's Space root capability, and MUST
-target a URL inside that Space. Targets outside the Space are unsatisfiable by
-construction ([[[#string-targets]]]), so a delegation rooted elsewhere cannot
+target a URL inside that Space. Targets outside the Space are [=unsatisfiable=]
+by construction ([[[#string-targets]]]), so a delegation rooted elsewhere cannot
 arise.
 
 ### Resumability {#resumability}
@@ -1738,8 +1694,8 @@ The delegation phase is not atomic: it may provision several collections, admit
 the grantee to several rosters, and mint several delegations, and it can fail
 partway through any of that.
 
-A [=wallet=] MUST ensure that such a failure leaves the exchange **repairable by
-re-running it**. Concretely:
+A [=wallet=] MUST ensure that such a failure leaves the exchange *repairable by
+re-running it*. Concretely:
 
 * provisioning MUST be idempotent ([[[#provisioning]]]);
 * delegation MUST be idempotent in effect: re-running an approved exchange MUST
@@ -1758,14 +1714,14 @@ Re-running is the only repair mechanism this profile defines, which is why every
 side effect it specifies is expressible as a converging operation rather than an
 incrementing one. The share case is the sharpest instance: its two axes cannot
 always be established in one atomic step, so
-[[[#descriptor-shared-collection]]] requires the missing half to be completed on
+[[[#descriptor-shared-wallet-collection]]] requires the missing half to be completed on
 a later run rather than requiring the pair to be atomic.
 </div>
 
 ### Grant recording {#grant-recording}
 
 A [=wallet=] MUST retain, for each grant it delegates, a record sufficient to
-**revoke that grant later** and to present it to the user as standing access.
+revoke that grant later and to present it to the user as standing access.
 
 A wallet MUST NOT deliver a response containing a grant it was unable to record.
 If recording fails, the wallet MUST fail the exchange rather than return the
@@ -1782,22 +1738,25 @@ are explicitly not the removal mechanism, least of all for shares.
 
 ### The action vocabulary {#action-vocabulary}
 
-The action vocabulary is **closed**:
+The action vocabulary is closed: the five tokens below are the only actions
+this profile recognizes, and the set is not extensible by request. No
+mechanism in this profile lets an application, a wallet, or a future
+descriptor class introduce an action outside it.
 
 ```
 GET, HEAD, POST, PUT, DELETE
 ```
 
 A [=wallet=] MUST normalize each requested action by trimming it, upper-casing
-it, and intersecting it with this set. A token outside the set -- an unknown
-verb, a non-string, or an action a future server version might support -- MUST
-be **dropped**. It MUST NOT be passed through into an `allowedAction` array the
+it, and intersecting it with this set. A token outside the set, such as an unknown
+verb, a non-string, or an action a future server version might support, MUST
+be *dropped*. It MUST NOT be passed through into an `allowedAction` array the
 user's root key signs.
 
 `HEAD` is a tolerated read alias, not an action of its own. [[WAS]] authorizes
 a `HEAD` request as a `GET`; this profile includes `HEAD` in every read grant
-and caps it exactly as `GET` is capped, so it never appears in a ceiling that
-does not already permit reads.
+and caps it exactly as `GET` is capped, so it never appears in an
+allowed-action set that does not already permit reads.
 
 <div class="note">
 Dropping unknown action tokens is the same fail-closed treatment an
@@ -1805,41 +1764,34 @@ unrecognized descriptor type gets ([[[#unknown-descriptor-type]]]), applied one
 level down.
 </div>
 
-### Default actions {#default-actions}
-
-A request entry with **no** `allowedAction` member MUST be treated as
-requesting `["GET", "HEAD"]`.
-
-A wallet MUST NOT treat an absent `allowedAction` as inherit-all. In the
-capability model an empty `allowedAction` array means *every* action, so
-defaulting to the empty array would turn "did not say" into "asked for
-everything".
-
-### Action ceilings {#action-ceilings}
+### Allowed actions {#allowed-actions}
 
 Attenuation in this profile is a **table, not a switch**. Every satisfiable
-target resolves into exactly one target class, and each class has a ceiling
-that the normalized requested actions are intersected against. Nothing above a
-class's ceiling is ever granted, no matter what the request asks for.
+target resolves into exactly one target class, and each class has a set of
+allowed actions that the normalized requested actions are intersected against.
+Nothing outside a class's allowed actions is ever granted, no matter what the
+request asks for.
 
 This table is normative.
 
-| Target class | Ceiling | Rationale |
-|--------------|---------|-----------|
-| space | `GET`, `HEAD` | A Space-wide write would authorize rewriting the Space Description, i.e. controller takeover. |
-| protected collection | `GET`, `HEAD` | A requesting party may read the user's own data on consent; it may never rewrite or delete it. |
-| share | `GET`, `HEAD` | A share hands over decryption as well as fetch; it is never a write grant. |
-| public collection | `GET`, `HEAD`, `POST` | Add-only: a write to a plaintext world-readable target is publication under the user's identity and irreversible in practice. |
-| collection | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The application's own data, bounded by consent and by the shorter write lifetime. |
+| Target class         | Allowed actions                        | Rationale                                                                                                  |
+|----------------------|----------------------------------------|------------------------------------------------------------------------------------------------------------|
+| protected collection | `GET`, `HEAD`                          | A requesting party may read the user's own data on consent; it may never rewrite or delete it.             |
+| share                | `GET`, `HEAD`                          | A share hands over decryption as well as fetch; it is never a write grant.                                 |
+| public collection    | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The application's own published data; un-publishing and revision are data management like any other write. |
+| collection           | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The application's own data, bounded by consent and by the shorter write lifetime.                          |
 
-The resulting `allowedAction` array MUST be ordered by the ceiling, not by the
-order the request asked in, so that equivalent requests yield byte-identical
-grants.
+The resulting `allowedAction` array MUST be ordered as in the table above, not
+by the order the request asked in, so that equivalent requests yield
+byte-identical grants.
 
-If the intersection is **empty** -- the request asked only for actions the
-class forbids, or only for tokens outside the vocabulary -- the entry MUST
-resolve **unsatisfiable**. A wallet MUST NOT delegate a capability with an
-empty `allowedAction` array, which would mean unrestricted.
+If the intersection is *empty* (the request asked only for actions the
+class forbids, or only for tokens outside the vocabulary) the entry MUST
+resolve [=unsatisfiable=]. A wallet MUST NOT delegate a capability with an
+absent or empty `allowedAction`. In [[ZCAP]], an absent member does not
+restrict actions at all. A present-but-empty array is malformed in the zcap
+data model, and a verifier that skipped the shape check would likewise read
+it as unrestricted.
 
 ### Delegation target {#delegation-target}
 
@@ -1852,26 +1804,25 @@ single-round: for the [=public clients=] this document profiles, on first run
 the identity being delegated to does not exist until the wallet creates it, so
 only the wallet can name it.
 
-### Per-user grantee DIDs {#per-user-grantee}
+It is also what makes grantee DIDs per-user by construction: the [=seed=] is
+minted per (user, application, origin), so the [=connecting DID=] derived from
+it is distinct for every user ([[[#privacy-per-user]]]).
 
-A grantee DID SHOULD NOT be shared across users. An [=application=] SHOULD hold
-a distinct [=connecting DID=] per user, and a [=wallet=] SHOULD NOT delegate to
-a controller it has reason to believe is shared.
-
-App Connect satisfies this by construction: the [=seed=] is minted per (user,
-application, origin), so the DID derived from it is per-user by definition. The
-requirement is stated as a SHOULD because the standalone capability channel can
-violate it undetectably -- a requester there names its own `controller`, and
-nothing in the exchange reveals whether the same one was named for another
-user.
+<div class="note">
+A channel where the requesting party names its own `controller` -- such as a
+standalone `AuthorizationCapabilityQuery` [[VCALM]] -- cannot make that
+guarantee: nothing in such an exchange reveals whether the same controller was
+named for another user. That gap is one more reason this profile never accepts
+a requester-named controller.
+</div>
 
 ### Recipient-key derivation {#recipient-derivation}
 
-Where an App Connect grant makes the grantee an [=epoch-roster recipient=] --
-that is, a `#shared-collection` grant ([[[#descriptor-shared-collection]]]) or
+Where an App Connect grant makes the grantee an [=epoch-roster recipient=],
+that is, a `#shared-wallet-collection` grant ([[[#descriptor-shared-wallet-collection]]]) or
 the provisioning of an encrypted application collection
-([[[#encrypted-by-default]]]) -- the recipient's key-agreement key MUST be
-**derived from the grantee's controller DID**.
+([[[#encrypted-by-default]]]), the recipient's key-agreement key MUST be
+*derived from the grantee's controller DID*.
 
 A [=wallet=] MUST NOT accept a recipient key supplied in the request, in any
 form. An explicit recipient key would let a request pair one entity's
@@ -1880,28 +1831,28 @@ substitution impossible by construction and keeps both axes of a share pointing
 at the same entity.
 
 If the controller DID has no derivable key-agreement key, the entry MUST
-resolve **unsatisfiable**. A wallet MUST reach that verdict by attempting the
+resolve [=unsatisfiable=]. A wallet MUST reach that verdict by attempting the
 real derivation, not by inspecting the DID's shape: a well-formed-looking but
 malformed DID would otherwise pass a shape check and fail only when the
 derivation is actually performed.
 
-For a `#shared-collection` entry, a wallet MUST perform that derivation during
-**resolution**, while the consent surface is being built, whenever the
-controller is known at that point -- so a share the wallet cannot honor is shown
-as unsatisfiable rather than failing mid-delegation.
+For a `#shared-wallet-collection` entry, a wallet MUST perform that derivation during
+resolution, while the consent surface is being built, whenever the
+controller is known at that point, so a share the wallet cannot honor is shown
+as [=unsatisfiable=] rather than failing mid-delegation.
 
 <div class="note">
 On a first-run exchange the [=connecting DID=] does not exist during resolution
-(the credential is not minted until after consent), so an **absent** controller
+(the credential is not minted until after consent), so an *absent* controller
 at resolution time is not yet a failure. The wallet re-checks with the real
 subject DID before delegating, and the same requirement applies then.
 </div>
 
-For every other entry class, the derivation may not be reachable before consent,
+For every other entry class, the derivation may not be reachable before consent
 because the collection may not exist until provisioning runs. A wallet is
-therefore not required to reach the unsatisfiable verdict before delegation
+therefore not required to reach the [=unsatisfiable=] verdict before delegation
 begins; it is instead required to leave any resulting partial failure
-**repairable by re-running the exchange**, per [[[#resumability]]]. A wallet
+repairable by re-running the exchange, per [[[#resumability]]]. A wallet
 MUST NOT leave the application holding an inconsistent set of grants that only
 manual intervention could correct.
 
@@ -1914,7 +1865,7 @@ the refusal.
 When a satisfiable grant names a collection that does not yet exist, the
 [=wallet=] MUST provision it before delegating.
 
-Provisioning MUST be **idempotent**. Re-running an App Connect exchange, in
+Provisioning MUST be idempotent. Re-running an App Connect exchange, in
 whole or in part, MUST NOT change the outcome. In particular:
 
 * a wallet MUST NOT clobber an existing collection's encryption descriptor;
@@ -1932,7 +1883,7 @@ A wallet MUST NOT provision over a protected collection
 ### Encrypted by default {#encrypted-by-default}
 
 A private collection provisioned for an [=application=] under
-`#collection` MUST be encrypted from creation. There is no unencrypted
+`#private-collection` MUST be encrypted from creation. There is no unencrypted
 intermediate state, and no later migration step in which existing contents are
 converted.
 
@@ -1974,7 +1925,7 @@ than short. The two axes of a share come apart at expiry: the delegated
 capability dies while epoch-roster recipiency does not, leaving a party who can
 still decrypt what it has, is still listed as a reader, and can no longer
 fetch. Revocation of a shared collection is an explicit act -- re-epoch plus
-revoke, together ([[[#descriptor-shared-collection]]]) -- not an expiry.
+revoke, together ([[[#descriptor-shared-wallet-collection]]]) -- not an expiry.
 
 ### Consent {#consent}
 
@@ -1985,11 +1936,11 @@ This profile states a normative minimum for the consent surface:
 
 1. The surface MUST present **exactly what resolution produced**. For each
    requested capability it MUST show the resolved target and the actions that
-   would actually be granted after capping ([[[#action-ceilings]]]) -- not the
+   would actually be granted after capping ([[[#allowed-actions]]]) -- not the
    actions that were requested.
-2. An entry that resolved **unsatisfiable** MUST be shown as such. It MUST NOT
+2. An entry that resolved [=unsatisfiable=] MUST be shown as such. It MUST NOT
    be omitted, and MUST NOT be shown as if it would be granted.
-3. A `#shared-collection` row MUST state that the grant is **read and
+3. A `#shared-wallet-collection` row MUST state that the grant is **read and
    decrypt**, not merely fetch; that it covers what is **already stored** in
    the collection, not only what is written afterwards; and that removing
    access later stops future reads but cannot retract what has already been
@@ -2520,7 +2471,7 @@ share no pre-existing root of authority. A resource log is the opposite case:
 its writer set is *defined as* the account's enrolled clients, which already
 have a self-sovereign home in the controller document. Making each log its
 own root would not add sovereignty; it would copy the client roster into N
-places and then have to keep the copies honest.
+places and then have to keep the copies consistent.
 
 **Revocation atomicity is what in-log key management would break.** Under the
 external rule, revoking a client is one controller-document edit, and that
@@ -2634,7 +2585,7 @@ reaches the grant path.
 
 ### The planted credential {#security-planted-credential}
 
-An `AppKeyCredential` marker asserts nothing that an attacker cannot also
+The `AppKeyCredential` type asserts nothing that an attacker cannot also
 assert, and neither does self-issuance. Two distinct mechanisms carry the
 weight, and it matters which one carries which.
 
@@ -2658,7 +2609,7 @@ provenance rule exists for. The attacker gets the user to import such a
 credential -- from a link, a QR code, a file, or a restored backup -- and gives
 it an `issuanceDate` in the future. The wallet stores it (every check passes).
 On the next connect the wallet's match predicate ([[[#app-key-matching]]])
-accepts it: correct marker, correct `appUrl`, self-issued, correct origin,
+accepts it: correct type, correct `appUrl`, self-issued, correct origin,
 binds.
 The latest-first ranking picks it over the user's real credential on the strength
 of its future date. The wallet then delegates the user's storage to the
@@ -2668,7 +2619,7 @@ application as if it were the user's own.
 **The refusal that closes it is a channel rule, not a content rule.** An
 app-key credential has no legitimate reason to arrive from outside: it is
 wallet-minted, in an [=App Connect exchange=], and never imported. A wallet that
-refuses every marker-carrying credential arriving from outside
+refuses every `AppKeyCredential`-typed credential arriving from outside
 ([[[#store-time-refusal]]]) is never in the position of having to tell a planted
 credential from a real one, because the only credentials in its store are ones
 it minted itself.
@@ -2690,7 +2641,7 @@ type ([[[#unknown-descriptor-type]]]) and an unrecognized query type
 token outside the closed vocabulary is dropped ([[[#action-vocabulary]]]) --
 which can never widen a grant, and becomes a visible refusal at the point where
 it would matter, since an entry left with no actions after capping is
-unsatisfiable rather than unrestricted ([[[#action-ceilings]]]).
+[=unsatisfiable=] rather than unrestricted ([[[#allowed-actions]]]).
 
 Together they are what makes the vocabulary extensible without a version
 negotiation. A new descriptor type can be deployed knowing that every wallet
@@ -2772,8 +2723,9 @@ and could link activity across them.
 It also removes a single point of failure: compromise of one user's application
 identity does not touch another's.
 
-The corresponding expectation is stated normatively as a SHOULD in
-[[[#per-user-grantee]]].
+This property holds by construction rather than by normative requirement: the
+wallet names the controller itself, deriving it from a per-user seed
+([[[#delegation-target]]]).
 
 ### The origin claim {#privacy-origin}
 

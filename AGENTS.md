@@ -74,14 +74,14 @@ The spec's main moving parts, in document order:
   rules, capability requests, challenge/domain.
 - **Invocation target descriptors** -- the typed vocabulary describing what
   storage a grant targets, with a descriptor type registry and **per-class
-  action ceilings** bounding what a delegation may carry.
+  allowed actions** bounding what a delegation may carry.
 - **The app-key credential** -- a self-issued VC carrying a 32-byte seed from
   which the application derives its key material. Key invariants: the
   **seed-binds-subject rule** (subject DID is derived from the seed) and
   **origin binding** (the wallet scopes the credential to the browser-attested
   requesting origin, minting on first run and matching on return visits).
 - **The response presentation** -- the `zcap` and `appConnect` members, the
-  `firstRun` marker, and the application-side verification order.
+  `firstRun` member, and the application-side verification order.
 - **Grant processing** -- resolution, capping, recording, provisioning,
   encrypted-by-default collections, lifetimes, consent.
 - **The Resource Log Profile** -- a hash-linked log format (extracted from
