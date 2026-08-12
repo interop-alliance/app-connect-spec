@@ -97,6 +97,26 @@ DID, and grant validity is the storage server's decision per WAS.
 Wallet terminology: follow the global `clientId` / `writerId` rules -- never
 "device" for either concept.
 
+## Parties to this contract
+
+Every repo that implements or consumes this profile, with the specific
+modules that speak it. **The maintenance rule: a normative change's checklist
+is a walk of this table** -- for each row, resolve the impact as shipped
+(naming what landed, including the row's ARCHITECTURE/AGENTS docs) or
+explicitly waived (`unaffected: <repo> (<why>)`). When the profile version
+changes (see the hosted context URL note in `spec.md`), each implementing
+package's CHANGELOG names the profile version it now speaks.
+
+| Repo | Modules speaking the contract |
+| --- | --- |
+| wallet-core | The wallet-side implementation both wallets consume: `src/request/classify.ts` (`appConnectRequestOf`, the `AppConnectQuery` validation), `src/request/appKey.ts` (the app-key credential: mint / match / legacy re-issue / store-time refusal, the marker type and inline context), `src/request/composeVp.ts` (the response VP with the `zcap` array and `appConnect` marker). |
+| freewallet | Consent UI, credential storage, and the delegation machinery over wallet-core: `src/lib/walletRequest/` (esp. `appConnect.ts`), `WalletGetPage`. |
+| dcw (private) | The mobile wallet's App Connect flow, over the same wallet-core modules. |
+| was-react | The app side: `src/auth/loginRequest.ts` (`buildAppConnectVpr`), `src/identity/seedCredential.ts` (`findSeedCredential` / `parseSeedCredential`), `src/auth/verifyResponse.ts`. Counterpart-tested against wallet-core's real implementation in `src/auth/walletCoreCounterpart.test.ts`, which runs in its ordinary CI. |
+| byoe-react-examples | Example apps consuming the profile through was-react; the wallet-tier e2e drives a real freewallet popup. |
+| life-advisor (private) | A consuming app, through was-react. |
+| was-conformance-suite | No App Connect-specific suite; the delegated grants the profile issues are exercised generically against servers (`client-delegation`). Re-check this row when the profile grows a server-visible surface. |
+
 ## Reference material (read-only, outside this repo)
 
 These are separate repositories. Use them to ground spec prose against real

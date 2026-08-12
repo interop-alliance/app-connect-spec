@@ -1075,6 +1075,15 @@ verification requires no fetch at verification time.
 The signature suite appends its own context entry when the credential is
 signed; that entry is the suite's, not this profile's.
 
+The context URL is also the profile's **version handle**: the trailing path
+segment (`v1`) names the profile version an implementation speaks, and a
+breaking change to the profile -- to the wire shapes this document defines, or
+to the terms the context maps -- MUST be published under a new context URL
+(`.../app-connect/v2`) rather than by editing the `v1` context in place.
+Implementations advertise which version they speak through the context URL
+they emit and accept; an implementing package SHOULD name the profile version
+in its changelog when the version it speaks changes.
+
 ### Seed encoding {#seed-encoding}
 
 The `credentialSubject.seed` claim MUST be a string holding **32 random bytes**
