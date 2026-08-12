@@ -102,7 +102,7 @@ anything an application sees.
 |----------|--------------|
 | [[WAS]] | Defines the Space / Collection / Resource model, the HTTP API, and the capability authorization profile whose delegations this profile produces. |
 | [[WAS-EC]] | Companion profile (draft). Defines the encrypted-collection construction: key epochs, roster recipients, envelope format, and the derivation of a recipient key from a controller DID. This profile defers to it for the recipient-key derivation ([[[#recipient-derivation]]]), the key-agreement half of the application's key material ([[[#key-derivation]]]), the epoch rotation behind forward-only re-grants ([[[#descriptor-shared-wallet-collection]]]), and the definition of [=epoch-roster recipient=] itself. |
-| [[VCALM]] | Defines verifiable presentation requests and their query types: the request body that carries an [=AppConnectQuery=], the `DIDAuthentication` and `QueryByExample` query types this profile interacts with, and `AuthorizationCapabilityQuery`, the standalone capability-request query type whose entry shape [=AppConnectQuery=] reuses. |
+| [[VCALM]] | Defines verifiable presentation requests and their query types: the request body that carries an [=AppConnectQuery=], the `DIDAuthentication` and `QueryByExample` query types this profile interacts with, and `AuthorizationCapabilityQuery`, the standalone capability-request query type whose entry shape [=AppConnectQuery=] reuses. Some wallets also honor `ZcapQuery` as a legacy spelling of `AuthorizationCapabilityQuery`, on the standalone capability-query channel only; this profile refers to the type by its canonical name throughout. |
 | [[CHAPI]] | The transport for in-browser applications, and the one this profile's normative prose is written against: it supplies the browser-attested requesting origin the [=app-key credential=] is bound to. Non-browser applications carry the same [[VCALM]] request over other transports ([[[#request-transport]]]). |
 | [[DID-WEBVH]] | The log format the [=resource log=] profile ([[[#resource-log-profile]]]) is extracted from, and one method a Space controller's [=controller document=] may be verified under. Nothing outside that profile depends on it. |
 
@@ -490,20 +490,37 @@ MUST treat a violation as a malformed request rather than resolving it in the
 application's favour:
 
 1. A request MUST NOT carry more than one `AppConnectQuery`.
-2. A request carrying an `AppConnectQuery` MUST NOT also carry a
-   `QueryByExample` query.
-3. A request carrying an `AppConnectQuery` MUST NOT also carry an
-   `AuthorizationCapabilityQuery` query.
-4. A conformant [=application=] MUST also include a `DIDAuthentication`
+2. A request carrying an `AppConnectQuery` MUST NOT carry any query other than
+   that `AppConnectQuery` and a `DIDAuthentication` query [[VCALM]]. That
+   permitted set is exhaustive: a query of any other type, whether or not the
+   wallet recognizes the type, makes the request malformed.
+3. A conformant [=application=] MUST also include a `DIDAuthentication`
    query [[VCALM]] alongside the `AppConnectQuery`. A [=wallet=] MUST NOT
    treat its absence as malformed; it MUST accept such a request and answer
    it with an unsigned presentation.
 
+Rule 2 is written as a closed permitted set rather than as a list of refused
+types so that query types defined after this document inherit the refusal
+without a revision here. It is this profile's fail-closed processing rule
+([[[#security-fail-closed]]]) applied to the query list.
+
+<div class="note">
+In particular, an `AppConnectQuery` cannot be combined with a `QueryByExample`
+query, with a standalone `AuthorizationCapabilityQuery` (or its legacy alias
+`ZcapQuery`), or with a `WalletOnboardingQuery` -- the wallet-to-wallet
+onboarding rendezvous query some of the same wallets exchange, which no
+specification defines at the time of writing. These are illustrations of rule
+2 rather than the rule itself: an implementation that enumerates refused types
+instead of checking the permitted set accepts requests this profile treats as
+malformed.
+</div>
+
 The exclusivity rules exist because an App Connect exchange has one consent
-surface describing one relationship. Mixing in a credential-sharing query or a
-standalone capability query would put two unrelated decisions behind one
-approval, with the second one described by the requesting party's own free-text
-`reason` strings.
+surface describing one relationship. Mixing in a credential-sharing query, a
+standalone capability query, or any other request type would put two unrelated
+decisions behind one approval, with the second one described by the requesting
+party's own free-text `reason` strings or by whatever surface that type would
+otherwise carry.
 
 ### Capability requests {#capability-query}
 
@@ -2645,9 +2662,11 @@ value would reopen a narrower version of the same path.
 
 ### Fail-closed processing as the extensibility rule {#security-fail-closed}
 
-Two rules in this profile refuse rather than degrade: an unrecognized descriptor
-type ([[[#unknown-descriptor-type]]]) and an unrecognized query type
-([[[#wallet-unsupported]]]). A third narrows rather than refuses: an action
+Three rules in this profile refuse rather than degrade: an unrecognized
+descriptor type ([[[#unknown-descriptor-type]]]), an unrecognized query type
+([[[#wallet-unsupported]]]), and a query of any type other than
+`DIDAuthentication` co-occurring with an `AppConnectQuery`
+([[[#request-exclusivity]]]). A fourth narrows rather than refuses: an action
 token outside the closed vocabulary is dropped ([[[#action-vocabulary]]]) --
 which can never widen a grant, and becomes a visible refusal at the point where
 it would matter, since an entry left with no actions after capping is
