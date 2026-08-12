@@ -845,10 +845,11 @@ open, which surfaces to a user as corrupt data rather than as a failed share.
 Granting only recipiency would leave a reader in the roster with no way to
 fetch.
 
-**A share covers what is already stored.** Recipient status on the current
-epoch lets the grantee decrypt the collection's existing contents, not only what
-is written after the share. A [=wallet=] MUST state this on the consent surface
-([[[#consent]]]).
+**A share covers what is already stored.** Adding the grantee to the roster
+escrows every epoch's key to it, not only the current epoch's (the escrow rule
+of [[WAS-EC]]'s roster operations), so the grantee can decrypt the collection's
+existing contents, not only what is written after the share. A [=wallet=] MUST
+state this on the consent surface ([[[#consent]]]).
 
 **Re-granting a previously revoked grantee restores read access to previously
 written content.** Adding a grantee back as an [=epoch-roster recipient=] gives
