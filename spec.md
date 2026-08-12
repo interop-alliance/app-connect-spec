@@ -2727,6 +2727,17 @@ This property holds by construction rather than by normative requirement: the
 wallet names the controller itself, deriving it from a per-user seed
 ([[[#delegation-target]]]).
 
+Some applications connect through a channel outside this profile and name
+their own `controller` (for example, via a standalone
+`AuthorizationCapabilityQuery` [[VCALM]]). Such an application SHOULD NOT use
+the same grantee DID across users. Reusing one DID recreates both exposures
+above: the storage provider can link every user who granted to it, and one
+compromised key opens every user's read axis at once. A wallet only ever sees
+one user's view, so it cannot detect the reuse. This is an expectation of
+application authors, not an enforceable rule. It is a SHOULD because a static
+grantee DID remains a defensible choice for some
+application shapes (a single-tenant backend service, for example).
+
 ### The origin claim {#privacy-origin}
 
 The `credentialSubject.origin` claim states which application the credential
