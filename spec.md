@@ -1170,6 +1170,15 @@ Origin binding is enforced **twice**, on purpose:
   ([[[#app-key-parsing]]]), so an application does not depend on the
   wallet having done so.
 
+<div class="note">
+The sibling `appUrl` claim travels with `origin` through the same moments: it
+is set at mint time ([[[#app-key-minting]]]) and compared on both sides
+([[[#app-key-matching]]], [[[#app-key-parsing]]]). It is not listed here as a
+binding because it is not attested: the browser attests nothing finer than the
+[=origin=], so `appUrl` namespaces identities within an origin without
+isolating same-origin applications from one another ([[[#security-origin]]]).
+</div>
+
 ### The seed-binds-subject rule {#seed-binds-subject}
 
 To decide whether a credential **is** an app-key credential rather than merely
