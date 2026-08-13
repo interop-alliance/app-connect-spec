@@ -2133,7 +2133,7 @@ one line; hash, DID, and key values are illustrative):
   "versionId": "1-QmUv7Yx3mvL2mLpp9pRgTvNqEcYtT7yiV1sfMx6xEBcCyD",
   "versionTime": "2026-08-06T17:00:00Z",
   "parameters": {
-    "method": "was-resource-log:0.1",
+    "method": "resource-log:0.1",
     "scid": "QmXbWpS3fY9uNnQhJcM4kR8vT2eDgAqLx5oPiZsE6wHtUa"
   },
   "state": { "type": "WasEpochConfiguration", "...": "..." },
@@ -2462,7 +2462,7 @@ history its author has closed.
 ### Format identifiers {#log-format-ids}
 
 The format identifier for this profile is the byte-significant string
-`was-resource-log:0.1`. The identifier is compared only for byte equality
+`resource-log:0.1`. The identifier is compared only for byte equality
 and never parsed: the `0.1` is part of the opaque identifier, not an
 orderable version number. A future revision of this profile is a different
 identifier reached only through the handover mechanism
