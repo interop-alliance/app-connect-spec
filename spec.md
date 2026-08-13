@@ -1084,7 +1084,7 @@ this order:
 The second entry is the context document that defines the BYOE terms of this
 profile as a whole: the credential's terms, mapped to the URLs of
 [[[#app-key-urls]]], and the response presentation's `zcap` and `appConnect`
-members ([[[#response-members]]]).
+members ([[[#response-term-urls]]]).
 Verifiers resolve it through their document loader like any other static
 context; loaders that bundle contexts for offline use pin it by URL, so
 verification requires no fetch at verification time.
@@ -1269,7 +1269,12 @@ spelling.
 </div>
 
 When none qualifies, the wallet MUST mint a fresh credential
-([[[#app-key-minting]]]) and MUST report first run ([[[#first-run]]]).
+([[[#app-key-minting]]]) and MUST report first run ([[[#first-run]]]), with
+one exception. A wallet MAY instead re-issue a credential it stored under an
+earlier format of this profile, keeping that credential's [=seed=], when it
+holds one unambiguously for the attested requesting [=origin=]. A re-issue
+continues the identity -- same seed, same [=connecting DID=] -- so the wallet
+MUST NOT report it as a first run.
 
 ### App Key Credential Minting {#app-key-minting}
 
@@ -1455,11 +1460,32 @@ Each entry in `zcap` is a self-contained delegated capability carrying its own
 `@context` and its own delegation proof; the entries self-authenticate
 independently of the presentation's proof.
 
+### Response term URLs {#response-term-urls}
+
+The two members this profile adds at the top level of the presentation are
+defined by the hosted context, `https://w3id.org/byoe/app-connect/v1`
+([[[#app-key-context]]]). This table restates their definitions, so that this
+document is self-contained:
+
+| Term         | URL                                | Term definition    |
+|--------------|------------------------------------|--------------------|
+| `zcap`       | `https://w3id.org/byoe#zcap`       | `@container: @set` |
+| `appConnect` | `https://w3id.org/byoe#appConnect` | `@type: @json`     |
+
+`zcap` is declared as a set container: whenever the member is present, its
+value is an array, even when it holds a single grant. `appConnect` is typed
+`@json`, so its contents canonicalize as one opaque literal.
+
 ### The firstRun member {#first-run}
 
-A [=wallet=] MUST set `appConnect.firstRun` to `true` if and only if it minted
-a new [=app-key credential=] during this exchange, and to `false` when it
-matched an existing one.
+A [=wallet=] MUST set `appConnect.firstRun` to `true` if and only if the
+exchange established a new [=connecting DID=] for the [=application=]. It MUST
+set `firstRun` to `false` when the identity continues: when it matched a
+stored [=app-key credential=], and also when it re-issued a stored credential
+of an earlier format under the same [=seed=] ([[[#app-key-matching]]]). The
+seed is unchanged in a re-issue, so the connecting DID is unchanged and the
+application's existing data stays reachable. A new credential document alone
+is not a first run.
 
 An [=application=] MUST treat *only* the boolean value `true` as first run.
 An absent `appConnect` member, an absent `firstRun` member, and any non-boolean
