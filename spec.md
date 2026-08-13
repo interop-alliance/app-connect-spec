@@ -2698,8 +2698,10 @@ value would reopen a narrower version of the same path.
 ### Fail-closed processing as the extensibility rule {#security-fail-closed}
 
 Three rules in this profile refuse rather than degrade: an unrecognized
-descriptor type ([[[#unknown-descriptor-type]]]), an unrecognized query type
-([[[#wallet-unsupported]]]), and a query of any type other than
+descriptor type ([[[#unknown-descriptor-type]]]), an `AppConnectQuery` the
+wallet does not recognize and therefore leaves wholly unsatisfied, which the
+application detects as a distinct outcome ([[[#wallet-unsupported]]]), and a
+query of any type other than
 `DIDAuthentication` co-occurring with an `AppConnectQuery`
 ([[[#request-exclusivity]]]). A fourth narrows rather than refuses: an action
 token outside the closed vocabulary is dropped ([[[#action-vocabulary]]]) --
