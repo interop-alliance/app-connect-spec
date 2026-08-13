@@ -1316,8 +1316,8 @@ minting it during an App Connect exchange ([[[#app-key-minting]]]).
 Accordingly, a [=wallet=] MUST refuse to store any credential that carries the
 `AppKeyCredential` type and did not originate in an [=App Connect exchange=]
 this wallet performed. The refusal MUST NOT depend on whether the credential binds
-per [[[#seed-binds-subject]]]: credential carrying the `AppKeyCredential` type
-arriving from outside is refused regardless of whether it is internally
+per [[[#seed-binds-subject]]]: a credential carrying the `AppKeyCredential`
+type arriving from outside is refused regardless of whether it is internally
 consistent.
 
 The refusal MUST be applied at every path by which a credential enters the
