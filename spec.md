@@ -1022,8 +1022,8 @@ An [=application=] under this profile is a [=public client=] (an
 application running entirely in the browser being the canonical case) and
 has nowhere durable and trustworthy to keep a secret of its own. The
 [=app-key credential=] answers
-this by moving custody: the wallet holds the application's [=seed=] as an
-ordinary credential in the user's wallet, and returns it to the same
+this by moving custody: the wallet holds the application's [=seed=] as a
+credential in the user's wallet, and returns it to the same
 application, same [=origin=], same `appUrl`, on every connect. This extends
 what a [=public client=] can ordinarily do: the application gains a stable,
 long-lived identity even though it retains no secret of its own between
@@ -1650,6 +1650,10 @@ requested only shared collections and received no grants at all.
 A share is the user granting access to their *own* data. Declining it is a
 legitimate answer to that question, and it says nothing about whether the user
 wants to use the application.
+
+The SHOULD strength here is deliberate. This tolerance is application policy,
+not wire conformance, and an application for which a particular share is
+essential MAY still choose to gate on it.
 
 ### The wallet-unsupported outcome {#wallet-unsupported}
 
@@ -2635,11 +2639,18 @@ between the wallet and the requesting origin; over another transport, that
 transport's response ([[[#request-transport]]]). It is never sent to the
 storage server, never appears in a capability, and never appears in a URL.
 
-At rest it lives in two places: in the user's wallet, as an ordinary stored
-credential subject to whatever protection the wallet applies to the user's
-credentials; and application-side, wherever the application persists it. An
-application SHOULD treat the seed as it would any long-lived client secret, and
-SHOULD scope its storage to its own origin.
+At rest it lives in two places: in the user's wallet, and application-side,
+wherever the application persists it. On the wallet side, ordinary credential
+handling is not enough. Credential-wide surfaces can carry a credential well
+past the requesting origin: a public link publishes it to the world, and
+sharing a whole collection hands every credential in it to a grantee. Either
+one would expose the seed in plaintext. Wallets in practice keep app-key
+credentials in a dedicated protected collection, held off those surfaces, so
+neither can reach a seed. The layout itself is wallet-internal, as is what a
+wallet calls that collection. An application only ever sees the credential
+inside the response presentation. An application SHOULD treat the
+seed as it would any long-lived client secret, and SHOULD scope its storage to
+its own origin.
 
 Nothing downstream of the wallet's match consumes the seed: the wallet reads it
 only to re-derive the subject DID for the binding check, so the seed never
