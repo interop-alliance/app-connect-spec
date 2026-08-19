@@ -2,6 +2,11 @@
 
 - Status: accepted
 - Date: 2026-08-19
+- Amendments: 2026-08-19: clause A predicates tightened after
+  adversarial review of the reference-server inspector (own-log
+  bridge target, bookkeeping-Space typing plus its Create Space rule,
+  subtree-only Space target made explicit, sole-controller and
+  relationship-id normalization).
 - Driving work: the public-computer posture redesign for the browser
   wallet -- an account with zero enrolled durable clients is anchored
   by a ladder-derived verification method in its document, and that
@@ -21,7 +26,10 @@ The ladder VM is the stable document-visible verification method
 derived from a standing unlock credential's random ladder seed. It
 exists only while the account has no enrolled durable client, and it
 is recognized by relation asymmetry: a `capabilityDelegation` member
-absent from `capabilityInvocation`. It must be able to sign the
+absent from `capabilityInvocation` (relationship entries compared as
+absolute method ids -- DID Core also permits embedded objects and
+relative references in a log-verified document). It must be able to
+sign the
 generation delegation (under `capabilityDelegation`) and anchor roster
 appends (under `assertionMethod`), or a client-less account is
 inoperable. Unbounded, those same relations grant three silent powers:
@@ -45,20 +53,28 @@ resolves to the ladder VM is admitted iff one of two predicates
 holds:
 
 1. Companion-DID controller, by pointer equality: the delegation's
-   `controller` string equals the companion DID named by the
+   sole `controller` equals the companion DID named by the
    `https://w3id.org/byoe#DelegatedClients` service entry of the
    account document the chain already resolved as delegator (zero
    extra I/O), behind the syntactic gate that the string parses as a
-   self-hosted did:webvh. A GC pointer swap thereby instantly kills
-   the prior generation's delegations.
+   self-hosted did:webvh. `controller` is read after normalizing the
+   zcap array form; two or more entries are refused, since a second
+   controller could invoke past the pointer. A GC pointer swap
+   thereby instantly kills the prior generation's delegations.
 2. Bridge-shaped target, two-branch, capability-side: the
-   delegation's `invocationTarget` equals the account log resource
-   URL (`<base>/space/<S>/id/did.jsonl` for some Space S) with
-   `allowedAction` a subset of {PUT}; or equals the trailing-slash
-   Space URL of a Space whose Description `type` includes
-   `DelegatedClientsSpace`, with `allowedAction` a subset of
-   {GET, PUT}. The second branch costs one memoized Space Description
-   read.
+   delegation's `invocationTarget` equals the delegator account's own
+   history log resource URL -- derived from the account DID, which
+   carries its log's Space and Collection; no other log-shaped target
+   qualifies -- with `allowedAction` a subset of {PUT}; or equals the
+   trailing-slash (subtree) URL of a Space whose Description declares
+   it delegated-clients bookkeeping (`type` names both
+   `AuxiliarySpace` and `DelegatedClientsSpace`; Create Space refuses
+   the latter without the former, so a listed data Space cannot carry
+   the subtype), with `allowedAction` a subset of {GET, PUT}. Only
+   the subtree form is admitted: a no-slash target would also cover
+   Update Space Description under target attenuation, so wallets pass
+   the subtree target explicitly when granting. The second branch
+   costs one memoized Space Description read.
 
 Failure semantics: the clause binds the capability decision only. A
 delegation failing it MUST NOT be treated as authorizing the request;
@@ -124,6 +140,18 @@ ladder roster append is anchored at a loud document event.
 - Path-shape-only target matching in the bridge branch: any
   whole-Space subtree target would pass, so the ladder VM could be
   handed the account Space wholesale.
+- A fixed `id` Collection for the log-target branch: refuses valid
+  accounts anchored in another Collection and admits other Spaces'
+  log-shaped paths; the delegator DID already names the only log
+  that matters.
+- Admitting the no-slash Space URL in the bookkeeping branch (the
+  client-library default grant target): under target attenuation it
+  also covers `PUT <base>/space/<S>`, which can rewrite the Space's
+  controller.
+- Anchoring the bookkeeping branch to the Space hosting the companion
+  DID's log instead of the type check: assumes the bookkeeping Space
+  and the companion log's Space coincide, which the profile does not
+  require.
 - The request-side variant of the target test: bounds the invocation
   rather than the delegation, and needs request context closed into
   the inspector.
@@ -149,6 +177,11 @@ ladder roster append is anchored at a loud document event.
 - Clause A is fail-open on unaware servers; until conformance
   discovery ships, the wallet-side publish-only-on-conforming-hosts
   rule is the only guard.
+- The ladder VM's bridge surface is exactly its own log resource plus
+  the subtrees of Spaces declared bookkeeping at creation; requiring
+  `AuxiliarySpace` means no Space can be both listed user data and
+  ladder-delegable. Wallet grant code passes the subtree target
+  explicitly instead of a client library's whole-Space default.
 - The attacker symmetry of clause B is accepted as stated: both
   parties hold the credential, the refusal adds an equal loud step
   for both, and the loser's remedy is the recovery code, which the
@@ -174,3 +207,5 @@ Reopen this decision when one or more of the following holds:
 3. The ladder VM's authority breadth gets a principled scoping story
    inside the capability bytes themselves (caveat-level restriction),
    making the server-side inspector redundant.
+4. A profile change lets an account's history log move after
+   creation; the own-log derivation then needs a history-aware rule.
