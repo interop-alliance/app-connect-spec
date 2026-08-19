@@ -117,6 +117,19 @@ package's CHANGELOG names the profile version it now speaks.
 | life-advisor (private) | A consuming app, through was-react. |
 | was-conformance-suite | No App Connect-specific suite; the delegated grants the profile issues are exercised generically against servers (`client-delegation`). Re-check this row when the profile grows a server-visible surface. |
 
+## Ecosystem conventions
+
+- Cross-repo lessons (invariants, gotchas, and process recipes that span
+  repos) live in the ecosystem learnings file,
+  [byoe-ecosystem/LEARNINGS.md](https://github.com/interop-alliance/byoe-ecosystem/blob/main/LEARNINGS.md)
+  (usually checked out beside this repo as `../byoe-ecosystem`); read it at
+  the start of any cross-repo task.
+- Decisions about the contract this spec owns (profile and wire-contract
+  decisions) are recorded in this repo's [decisions/](decisions/) directory,
+  one `NNNN-slug.md` file per decision; the convention and template are
+  canonical in
+  [isomorphic-lib-template's `decisions/`](https://github.com/interop-alliance/isomorphic-lib-template/tree/main/decisions).
+
 ## Reference material (read-only, outside this repo)
 
 These are separate repositories. Use them to ground spec prose against real
