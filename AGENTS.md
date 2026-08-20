@@ -24,7 +24,7 @@ accurate, internally consistent, and renders cleanly in ReSpec.
 
 ## Files
 
-- `spec.md` -- the entire normative specification (single file, ~2650 lines).
+- `spec.md` -- the entire normative specification (single file, ~2100 lines).
   This is what you edit 99% of the time.
 - `index.html` -- ReSpec shell. Sets config (`specStatus: "unofficial"`, GitHub
   repo, xref to `did-core`, and a `localBiblio` for `WAS`, `WAS-EC`, `VCALM`,
@@ -84,9 +84,10 @@ The spec's main moving parts, in document order:
   `firstRun` member, and the application-side verification order.
 - **Grant processing** -- resolution, capping, recording, provisioning,
   encrypted-by-default collections, lifetimes, consent.
-- **The Resource Log Profile** -- a hash-linked log format (extracted from
-  did:webvh) for key resources co-managed between a wallet's clients and the
-  storage server.
+- **The resource log** -- the hash-linked log format for key resources
+  co-managed between a wallet's clients and the storage server -- is defined
+  in [WAS-EC], not here; this spec only cites its external-authorization
+  rule for enrolled clients. Do not re-introduce the profile text.
 - **Fail-closed processing** is the extensibility rule throughout: anything
   unrecognized is rejected, not ignored.
 
