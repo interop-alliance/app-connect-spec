@@ -12,7 +12,7 @@
   by a ladder-derived verification method in its document, and that
   VM's authority had to be bounded so a phished unlock credential (or
   a storage host grinding the unlock record offline) cannot exercise
-  silent authority during the client-less window.
+  silent authority during the ladder-anchored window.
 - Affects: this spec's companion profile (clause A's normative text
   and its fail-open note) and Resource Log Profile (clause B, a new
   subsection beside "The sealing append"); was-teaching-server (the
@@ -30,8 +30,8 @@ absent from `capabilityInvocation` (relationship entries compared as
 absolute method ids -- DID Core also permits embedded objects and
 relative references in a log-verified document). It must be able to
 sign the
-generation delegation (under `capabilityDelegation`) and anchor roster
-appends (under `assertionMethod`), or a client-less account is
+generation delegation (under `capabilityDelegation`) and roster
+appends (under `assertionMethod`), or a ladder-anchored account is
 inoperable. Unbounded, those same relations grant three silent powers:
 delegating a Space-scoped zcap directly to an attacker-held key with
 no log entry anywhere; appending a roster rotation that rekeys the
@@ -99,12 +99,12 @@ revocation are excluded structurally, because a client's
 ladder-signed roster append is accepted in exactly two shapes:
 
 1. A roster's first entry -- creation, never extension.
-2. A rotation anchored at a posture-changing document version, and
+2. A rotation carrying a posture-changing document version, and
    one-shot: refused when the verified roster head already contains
-   an entry anchored at V or later. Comparison is by position in the
+   an entry carrying V or later. Comparison is by position in the
    controller's verified version history
-   (`headAnchorIndex >= indexOf(V)`, the structural twin of the
-   shipped sealing check).
+   (`headControllerVersionIndex >= indexOf(V)`, the structural twin of
+   the shipped sealing check).
 
 Everything else -- above all a rotation against an unchanged
 document, the silent-rekey shape -- is refused by every verifier.
@@ -117,7 +117,7 @@ severity does not apply.
 The locked property across both clauses: no ladder authority whose
 exercise leaves no record. Every ladder delegation either needs a
 loud companion entry to resolve or can only write a log; every
-ladder roster append is anchored at a loud document event.
+ladder roster append carries a loud document event's version.
 
 ## Rejected Alternatives
 
@@ -162,8 +162,8 @@ ladder roster append is anchored at a loud document event.
   enroll/revoke, widening the license by exactly the excluded class.
 - A VM-type-driven posture set: equivalent in effect but fragile for
   the high-entropy passkey's plain `Multikey` entry.
-- An ordinal-prefix numeric anchor comparison: diverges from the
-  implementation and from the profile's descendant-of hedge.
+- An ordinal-prefix numeric controller-version comparison: diverges
+  from the implementation and from the profile's descendant-of hedge.
 - Folding the refusal into the integrity class: callers could not
   distinguish an unlicensed append (retryable) from a corrupt log
   (not retryable).
@@ -171,9 +171,9 @@ ladder roster append is anchored at a loud document event.
 ## Consequences
 
 - The loudness invariant becomes uniform across every axis: ladder
-  authority acts only through, or anchored at, a log entry. A
-  successful offline grind of the unlock record yields a loud record,
-  not standing silent authority.
+  authority acts only through, or carries the version of, a log
+  entry. A successful offline grind of the unlock record yields a
+  loud record, not standing silent authority.
 - Clause A is fail-open on unaware servers; until conformance
   discovery ships, the wallet-side publish-only-on-conforming-hosts
   rule is the only guard.
@@ -190,7 +190,7 @@ ladder roster append is anchored at a loud document event.
   evaluating S(V) and recognizing the relation asymmetry are both
   invisible through an `assertionMethod`-only accessor.
 - Torn-ceremony tails still complete: a late-arriving licensed
-  rotation passes because no roster entry anchored at its
+  rotation passes because no roster entry carrying its
   posture-changing version exists yet.
 
 ## Revisit Criteria
@@ -202,8 +202,8 @@ Reopen this decision when one or more of the following holds:
    to relax or the clause to harden into a hard requirement.
 2. A new ceremony legitimately needs a ladder-signed roster append
    outside the two licensed shapes; extend the license as a new
-   enumerated shape with its own anchor rule, never by loosening the
-   one-shot refinement.
+   enumerated shape with its own controller-version rule, never by
+   loosening the one-shot refinement.
 3. The ladder VM's authority breadth gets a principled scoping story
    inside the capability bytes themselves (caveat-level restriction),
    making the server-side inspector redundant.

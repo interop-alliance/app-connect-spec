@@ -2042,7 +2042,7 @@ resources (collection encryption descriptors and the key rosters beside
 them) are co-managed between a wallet's [=enrolled clients=] and the
 storage server. It is defined by [[WAS-EC]], beside the state schemas it
 governs. That definition covers the log model, the entry format, entry
-hashing and the SCID, the entry proof and its anchor, the
+hashing and the SCID, the entry proof and its controller versionId, the
 external-authorization rule, chain verification, appending under
 conditional writes, head pinning, the terminal handover entry, and the
 format identifier.
