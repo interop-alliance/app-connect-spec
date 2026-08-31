@@ -1997,6 +1997,15 @@ The values the shipped implementations use are informative: 30 days for
 read-only grants, 7 days for write-bearing grants, and 365 days for shares.
 </div>
 
+<div class="note">
+A grant's lifetime is also bounded by the capability it is delegated from. A
+wallet may delegate from a session-scoped intermediate capability rather than
+directly from the Space root capability; a browser wallet does this for a visit
+on a shared computer. The grant's `expires` can then be no later than that
+parent's, so the lifetime the application receives can be shorter than the
+figures above.
+</div>
+
 **A share grant's lifetime MUST NOT be used as the removal mechanism for the
 share.** This is normative and is the reason a share's lifetime is long rather
 than short. The two axes of a share come apart at expiry: the delegated

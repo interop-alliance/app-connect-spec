@@ -6,7 +6,8 @@
   adversarial review of the reference-server inspector (own-log
   bridge target, bookkeeping-Space typing plus its Create Space rule,
   subtree-only Space target made explicit, sole-controller and
-  relationship-id normalization).
+  relationship-id normalization). 2026-08-22: shape 2 of clause B's
+  license gains a per-entry refinement to the one-shot check.
 - Driving work: the public-computer posture redesign for the browser
   wallet -- an account with zero enrolled durable clients is anchored
   by a ladder-derived verification method in its document, and that
@@ -23,14 +24,16 @@
 ## Context
 
 The ladder VM is the stable document-visible verification method
-derived from a standing unlock credential's random ladder seed. It
-exists only while the account has no enrolled durable client, and it
-is recognized by relation asymmetry: a `capabilityDelegation` member
-absent from `capabilityInvocation` (relationship entries compared as
-absolute method ids -- DID Core also permits embedded objects and
-relative references in a log-verified document). It must be able to
-sign the
-generation delegation (under `capabilityDelegation`) and roster
+derived from a standing unlock credential's random ladder seed. Its
+life is keyed to its credential rather than to the account's client
+census: it is installed when the credential becomes standing, it stands
+for as long as that credential does, and it is struck only at that
+credential's retirement -- on accounts with enrolled clients and on
+accounts without them alike. It is recognized by relation asymmetry: a
+`capabilityDelegation` member absent from `capabilityInvocation`
+(relationship entries compared as absolute method ids -- DID Core also
+permits embedded objects and relative references in a log-verified
+document). It must be able to sign the generation delegation (under `capabilityDelegation`) and roster
 appends (under `assertionMethod`), or a ladder-anchored account is
 inoperable. Unbounded, those same relations grant three silent powers:
 delegating a Space-scoped zcap directly to an attacker-held key with
@@ -104,7 +107,10 @@ ladder-signed roster append is accepted in exactly two shapes:
    an entry carrying V or later. Comparison is by position in the
    controller's verified version history
    (`headControllerVersionIndex >= indexOf(V)`, the structural twin of
-   the shipped sealing check).
+   the shipped sealing check). Refinement: the one-shot is evaluated
+   per entry, over the entry's set of signing keys. At most one of an
+   entry's proofs may be by a ladder key; a rotation co-signed by a
+   member stays licensed.
 
 Everything else -- above all a rotation against an unchanged
 document, the silent-rekey shape -- is refused by every verifier.
@@ -168,6 +174,47 @@ ladder roster append carries a loud document event's version.
   distinguish an unlicensed append (retryable) from a corrupt log
   (not retryable).
 
+Two widenings of clause B were proposed by the FW-356 credential-keyed
+ladder VM work and rejected 2026-08-28 as do-not-reopen. The first
+would have admitted a ladder-signed roster append against a version
+that did not change the credential inventory, provided the signing
+ladder key already stood in that version, so the last-client
+transition could rotate the roster with its ladder VM already
+standing. That is a loosening of the one-shot refinement rather than a
+new enumerated shape, which Revisit Criteria 2 rules out in advance.
+wallet-core `decisions/0008-atomic-forget-removal-entry.md` had
+already turned the same widening down for a sibling ceremony, on the
+ground that it admits exactly the ordinary enroll/revoke class the
+license exists to exclude. The transition instead strikes and
+reinstalls its own ladder VM, and the reinstall entry supplies the
+inventory-changing version the clause already admits.
+
+The second was co-signature: admit the append when a still-standing
+enrolled client's key co-signs the entry, tested over `proofKeys`. It
+is rejected because it would build an admission on a value
+`@interop/vh-resource-log`'s port documents as host-mutable in order
+and multiplicity (`controller.d.ts:86-95`). A host that strips the
+client's proof from a served entry makes a legitimately written append
+read as unlicensed on read-back, and the verifier then rejects the
+whole roster log. That is a permanent user-key denial primitive handed
+to the one party the threat model assumes hostile.
+
+A narrowing of clause B was considered and rejected 2026-08-29
+(wallet-core WC-156). It would have admitted only a version that ADDS
+an inventory member, so a removal-only version would license nothing:
+the last-client transition's strike entry, and a self-enrollment's
+ladder-VM strike. The narrowing closes no sibling-ladder capability.
+The transition's reinstall version stays licensed in the same window,
+and that is the shot the transition's own rotation needs, so a thief
+holding a sibling credential loses nothing while the normative
+predicate moves and its downstream transcriptions are re-owed. The
+strike version's shot is therefore accepted. Its exposure is bounded:
+a sibling ladder stands only on an account with two or more standing
+credentials, such an account has an enrolled client by construction,
+so credential rotation is reachable as the remedy, the sibling's
+append is attributable in the roster log, and the stolen credential's
+standing wrap already opens every epoch.
+
 ## Consequences
 
 - The loudness invariant becomes uniform across every axis: ladder
@@ -203,9 +250,33 @@ Reopen this decision when one or more of the following holds:
 2. A new ceremony legitimately needs a ladder-signed roster append
    outside the two licensed shapes; extend the license as a new
    enumerated shape with its own controller-version rule, never by
-   loosening the one-shot refinement.
+   loosening the one-shot refinement. Considered 2026-08-28 by the
+   credential-keyed ladder VM work and NOT exercised: the last-client
+   transition strikes and reinstalls its own ladder VM instead, and the
+   reinstall supplies an inventory-changing version the license already
+   admits. Clause B is unchanged.
 3. The ladder VM's authority breadth gets a principled scoping story
    inside the capability bytes themselves (caveat-level restriction),
    making the server-side inspector redundant.
 4. A profile change lets an account's history log move after
    creation; the own-log derivation then needs a history-aware rule.
+
+## Changelog
+
+- 2026-08-28: the Context's lifecycle sentence was rewritten in place.
+  It previously read that the ladder VM exists only while the account has
+  no enrolled client; a VM's life is now keyed to its credential, so one
+  stands for the life of every standing credential, on accounts with
+  enrolled clients too. That is a reversal of the lifecycle rule, not a
+  refinement -- read the prior version for the superseded wording. The
+  clauses themselves are untouched: neither clause A's predicates nor
+  clause B's license depends on the client census. What changes is the
+  scale of what they bound, from one VM during a transitional window to
+  one per standing credential for the account's life.
+- 2026-08-29: two rejected widenings of clause B were added to Rejected
+  Alternatives, both decided 2026-08-28 in the FW-356 design pass. No
+  normative clause text changed.
+- 2026-08-29: a rejected narrowing of clause B was added to Rejected
+  Alternatives, decided in wallet-core WC-156. The last-client
+  transition's strike version keeps its license shot. No normative
+  clause text changed.

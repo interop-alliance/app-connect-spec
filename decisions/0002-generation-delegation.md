@@ -52,7 +52,7 @@ renewal policy are permanent wire artifacts.
   (`capabilityChain` = `[root id string, the full embedded
   generation-delegation object]`, per zcap's
   all-strings-except-last-embeds rule). The library's per-hop
-  `expires` monotonicity IS the TTL clamp: an app grant can never
+  `expires` monotonicity IS the TTL bound: an app grant can never
   outlive the generation delegation.
 - `expires` is 365 days. GC's explicit
   revoke is the intended end-of-life; expiry is the backstop.
@@ -67,11 +67,11 @@ renewal policy are permanent wire artifacts.
   recoverable). A renewal failure fails the approval with the standard
   retryable-ceremony posture. By construction the bounded grants (30d
   read, 7d write) always receive their full TTL; only 365-day-class
-  grants ever meet the monotonicity clamp, at 30 or more days
+  grants ever meet the monotonicity bound, at 30 or more days
   remaining.
-- Grants approved in a transient session are visit-scoped: TTL clamped
-  to the signing authority's lifetime, with consent copy stating the
-  grant lasts until it expires (logout as the early end).
+- Grants approved in a transient session are visit-scoped: the TTL is
+  cut back to the signing authority's lifetime, with consent copy
+  stating the grant lasts until it expires (logout as the early end).
 
 ## Rejected Alternatives
 

@@ -2,6 +2,10 @@
 
 - Status: accepted
 - Date: 2026-08-19
+- Amended: 2026-08-28 -- the `<companionDid>#<vm>` form also signs the
+  grants a transient visit delegates, so the "only WAS invocations"
+  clause below no longer holds. The decision itself is unchanged. See
+  wallet-core `decisions/0013-transient-vm-capability-delegation.md`.
 - Driving work: the public-computer posture redesign for the browser
   wallet -- a transient visit client, enrolled in the capability-gated
   companion did:webvh, still has to answer an App Connect request with
