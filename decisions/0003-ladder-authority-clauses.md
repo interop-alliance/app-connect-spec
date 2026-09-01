@@ -8,6 +8,9 @@
   subtree-only Space target made explicit, sole-controller and
   relationship-id normalization). 2026-08-22: shape 2 of clause B's
   license gains a per-entry refinement to the one-shot check.
+  2026-09-01: clause A gains a third predicate (target-exact,
+  single-verb ladder delegations on a bare Space URL) and the locked
+  property is restated to cover it.
 - Driving work: the public-computer posture redesign for the browser
   wallet -- an account with zero enrolled durable clients is anchored
   by a ladder-derived verification method in its document, and that
@@ -52,7 +55,7 @@ Two normative clauses, one per authority axis.
 Clause A, the delegation axis (server-side, a second
 `inspectCapabilityChain` inspector beside the existing revocation
 one; no verification-library changes). A delegation whose proof VM
-resolves to the ladder VM is admitted iff one of two predicates
+resolves to the ladder VM is admitted iff one of three predicates
 holds:
 
 1. Companion-DID controller, by pointer equality: the delegation's
@@ -78,6 +81,20 @@ holds:
    Update Space Description under target attenuation, so wallets pass
    the subtree target explicitly when granting. The second branch
    costs one memoized Space Description read.
+
+3. Target-exact single-verb, both chain lengths (added 2026-09-01):
+   the delegation's `invocationTarget` is a bare Space URL and its
+   `allowedAction` is exactly `['DELETE']` or exactly `['GET']`. When
+   the parent is a delegated capability, the target must equal the
+   parent's unchanged; when the parent is the synthesized Space root,
+   the target must equal that root's own Space URL. This is the
+   account-deletion ceremony's admission path; its delegatee and
+   invoker is the ladder VM's own bare did:key, which predicate 1
+   never admitted. Two bounds keep it narrow: on the
+   management-capability arm the parent already carries DELETE on
+   exactly that Space URL, so the predicate widens who signs the last
+   link rather than what the account may do; and the target-equality
+   rule means the ladder VM cannot aim the child anywhere new.
 
 Failure semantics: the clause binds the capability decision only. A
 delegation failing it MUST NOT be treated as authorizing the request;
@@ -120,10 +137,16 @@ The refusal is a write-time admission error, a new named class
 entry, not log corruption, and the profile's reject-the-whole-log
 severity does not apply.
 
-The locked property across both clauses: no ladder authority whose
-exercise leaves no record. Every ladder delegation either needs a
-loud companion entry to resolve or can only write a log; every
-ladder roster append carries a loud document event's version.
+The locked property across both clauses, restated 2026-09-01: every
+ladder delegation either needs a loud companion entry to resolve, can
+only write a log, or is a target-exact single-verb GET or DELETE on
+one Space of the delegator's own account -- a read, or a destruction
+whose account-Space case removes the log any record would live in and
+leaves no reader to remediate; every ladder roster append carries a
+loud document event's version. The prior absolute form ("no ladder
+authority whose exercise leaves no record") is superseded: a DELETE
+admitted under predicate 3 leaves no record, and that carve-out is the
+account-deletion design's stated trade.
 
 ## Rejected Alternatives
 
@@ -136,6 +159,11 @@ ladder roster append carries a loud document event's version.
 - Widening clause A for rotation support: rotation's blocker was the
   roster axis, so a wider delegation clause is authority without a
   consumer.
+- An unconstrained ladder-delegation predicate (no target or verb
+  bound), and a server rule admitting `capabilityDelegation` members
+  as direct root invokers of a Space DELETE: both rejected in the
+  transient account-deletion design (its wallet-side record holds the
+  do-not-reopen); predicate 3 is the bounded form that stands.
 - Syntactic-only controller matching (any self-hosted did:webvh
   qualifies): rests loudness solely on invocation-time companion-log
   membership.
@@ -280,3 +308,9 @@ Reopen this decision when one or more of the following holds:
   Alternatives, decided in wallet-core WC-156. The last-client
   transition's strike version keeps its license shot. No normative
   clause text changed.
+- 2026-09-01: clause A gains predicate 3, admitting a target-exact,
+  single-verb (`['DELETE']` or `['GET']`) ladder-signed delegation on a
+  bare Space URL over either parent kind, and the locked property is
+  restated to cover it. That is a widening, not a refinement -- the
+  prior property was absolute; read the prior version for it. Driven by
+  the browser wallet's transient account-deletion design.

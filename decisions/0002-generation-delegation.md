@@ -44,7 +44,14 @@ renewal policy are permanent wire artifacts.
   The subtree target excludes the bare Space URL itself, keeping the
   Space Description PUT (a controller rewrite -- the permanent-takeover
   escalation a window-bounded key must not hold) and the Space DELETE
-  outside the delegation in the capability bytes.
+  outside the delegation in the capability bytes. The Space DELETE
+  exclusion is scoped to this delegation (amended 2026-09-01): the
+  account-deletion ceremony mints a separate, clause-admitted
+  capability naming the bare Space URL with `allowedAction` exactly
+  `['DELETE']` (decisions/0003's target-exact single-verb predicate)
+  -- one verb, a ten-minute life, no onward grantee. The Space
+  Description PUT exclusion is absolute: no admitted shape reaches the
+  controller rewrite.
 - Chain shape is depth 3: the account Space's root zcap, the
   generation delegation (`controller` = the bare companion DID string;
   `proof.verificationMethod` = the account document's ladder VM or a
@@ -147,3 +154,12 @@ Reopen this decision when one or more of the following holds:
 
 If revisited, change the scope as a new delegation profile version;
 never reinterpret the shipped subtree target in place.
+
+## Changelog
+
+- 2026-09-01: the Decision's Space DELETE exclusion was scoped to the
+  generation delegation itself. A reader previously would conclude the
+  ladder VM cannot reach a Space DELETE at all; a separate DELETE-only
+  capability admitted by decisions/0003's third predicate now can, as
+  part of the account-deletion ceremony. The controller-rewrite
+  exclusion is unchanged and absolute.
