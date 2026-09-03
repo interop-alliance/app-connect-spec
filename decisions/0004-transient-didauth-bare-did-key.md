@@ -6,6 +6,14 @@
   grants a transient visit delegates, so the "only WAS invocations"
   clause below no longer holds. The decision itself is unchanged. See
   wallet-core `decisions/0013-transient-vm-capability-delegation.md`.
+- Amended: 2026-09-03 -- the browser wallet now pins the App Connect
+  holder to the client did:key by an explicit override at composition
+  time, so this record's consequence holds by construction rather than
+  by which signer happened to be provisioned. Its generic DIDAuth
+  holder, outside App Connect, may be the account did:webvh or its
+  did:web projection when the request's `acceptedMethods` asks for one.
+  The decision itself is unchanged. See the browser wallet's
+  `decisions/0016-didauth-holder-dispatches-on-accepted-methods.md`.
 - Driving work: the public-computer posture redesign for the browser
   wallet -- a transient visit client, enrolled in the capability-gated
   companion did:webvh, still has to answer an App Connect request with
@@ -68,3 +76,14 @@ Reopen this decision when one or more of the following holds:
    would remove the 401 constraint (the privacy argument against
    publishing the companion DID to apps would still need its own
    weighing).
+
+## Changelog
+
+- 2026-08-28: no change to the decision. The transient key's
+  `<companionDid>#<vm>` form was found to sign delegated grants too, so
+  the "only WAS invocations" clause in the Decision no longer holds.
+- 2026-09-03: no change to the decision. Recorded that the browser
+  wallet pins the App Connect holder to the client did:key by explicit
+  override, closing a drift in which a remembered session against a KMS
+  deployment presented a did:web holder, and that its holder outside
+  App Connect dispatches on `acceptedMethods`.

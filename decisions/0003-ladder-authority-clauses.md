@@ -10,7 +10,9 @@
   license gains a per-entry refinement to the one-shot check.
   2026-09-01: clause A gains a third predicate (target-exact,
   single-verb ladder delegations on a bare Space URL) and the locked
-  property is restated to cover it.
+  property is restated to cover it. 2026-09-01: clause A's predicate 1
+  is narrowed by a target bound (the account Space's items subtree)
+  and an action bound (the closed WAS verb vocabulary).
 - Driving work: the public-computer posture redesign for the browser
   wallet -- an account with zero enrolled durable clients is anchored
   by a ladder-derived verification method in its document, and that
@@ -58,8 +60,11 @@ one; no verification-library changes). A delegation whose proof VM
 resolves to the ladder VM is admitted iff one of three predicates
 holds:
 
-1. Companion-DID controller, by pointer equality: the delegation's
-   sole `controller` equals the companion DID named by the
+1. Companion-DID controller inside the account Space's items subtree
+   (narrowed 2026-09-01). Three bounds hold together.
+
+   Grantee, by pointer equality: the delegation's sole `controller`
+   equals the companion DID named by the
    `https://w3id.org/byoe#DelegatedClients` service entry of the
    account document the chain already resolved as delegator (zero
    extra I/O), behind the syntactic gate that the string parses as a
@@ -67,6 +72,25 @@ holds:
    zcap array form; two or more entries are refused, since a second
    controller could invoke past the pointer. A GC pointer swap
    thereby instantly kills the prior generation's delegations.
+
+   Target: the `invocationTarget` is the trailing-slash URL of the
+   Space carrying the delegator DID's own history log -- the account
+   Space -- or a path under that URL. The bare Space URL is refused,
+   since target attenuation would carry it to Update Space
+   Description, which rewrites the Space's controller, and to Delete
+   Space. Keystore targets (`/kms/...`) are refused as well; they lie
+   outside the subtree by path shape.
+
+   Action: `allowedAction` is present, non-empty, and a subset of the
+   full closed WAS verb vocabulary {GET, HEAD, POST, PUT, DELETE}.
+   The whole vocabulary is admitted rather than a chosen subset,
+   because the generation delegation (decision 0002) carries exactly
+   it and a child capability may not exceed its parent -- so any verb
+   left out here would hold every transient-visit grant below the
+   durable client's own shape. The action bound is there to refuse an
+   absent or open `allowedAction` and any verb outside the protocol.
+   The target bound does the narrowing.
+
 2. Bridge-shaped target, two-branch, capability-side: the
    delegation's `invocationTarget` equals the delegator account's own
    history log resource URL -- derived from the account DID, which
@@ -138,12 +162,17 @@ entry, not log corruption, and the profile's reject-the-whole-log
 severity does not apply.
 
 The locked property across both clauses, restated 2026-09-01: every
-ladder delegation either needs a loud companion entry to resolve, can
-only write a log, or is a target-exact single-verb GET or DELETE on
-one Space of the delegator's own account -- a read, or a destruction
-whose account-Space case removes the log any record would live in and
-leaves no reader to remediate; every ladder roster append carries a
-loud document event's version. The prior absolute form ("no ladder
+ladder delegation either needs a loud companion entry to resolve and
+stays inside the account Space's items subtree, can only write a log,
+or is a target-exact single-verb GET or DELETE on one Space of the
+delegator's own account -- a read, or a destruction whose account-Space
+case removes the log any record would live in and leaves no reader to
+remediate; every ladder roster append carries a loud document event's
+version. Predicate 1's target bound closes one gap the grantee-keyed
+form left open: a companion VM that also holds `capabilityDelegation`
+can mint onward grants no companion entry records, and every such
+grant is a child of the admitted delegation, so none of them reaches
+Update Space Description, Delete Space, or a keystore. The prior absolute form ("no ladder
 authority whose exercise leaves no record") is superseded: a DELETE
 admitted under predicate 3 leaves no record, and that carve-out is the
 account-deletion design's stated trade.
@@ -164,6 +193,12 @@ account-deletion design's stated trade.
   as direct root invokers of a Space DELETE: both rejected in the
   transient account-deletion design (its wallet-side record holds the
   do-not-reopen); predicate 3 is the bounded form that stands.
+- A narrower verb set on predicate 1 (for instance dropping DELETE, or
+  admitting reads alone), considered and rejected 2026-09-01: the
+  generation delegation carries the full vocabulary, and a child
+  capability may not exceed its parent, so every omitted verb would
+  hold each transient-visit grant below the durable client's own
+  shape while adding no bound the target test does not already give.
 - Syntactic-only controller matching (any self-hosted did:webvh
   qualifies): rests loudness solely on invocation-time companion-log
   membership.
@@ -314,3 +349,15 @@ Reopen this decision when one or more of the following holds:
   restated to cover it. That is a widening, not a refinement -- the
   prior property was absolute; read the prior version for it. Driven by
   the browser wallet's transient account-deletion design.
+- 2026-09-01: clause A's predicate 1 gains a target bound (the
+  `invocationTarget` must be the account Space's items subtree, in the
+  trailing-slash form or a path under it; the bare Space URL and
+  keystore targets are refused) and an action bound (`allowedAction`
+  present, non-empty, and within the full closed WAS verb vocabulary).
+  That is a narrowing rather than a reversal, so it amends the record
+  in place: what the predicate admits now is a subset of what it
+  admitted before. The locked property's restatement now says
+  predicate 1 delegations stay inside that subtree, so Update Space
+  Description is out of reach through every admitted shape. Driven by
+  the browser wallet's FW-356 / FW-359 work and the reference server's
+  roadmap; shipped in was-teaching-server 0.25.0.
