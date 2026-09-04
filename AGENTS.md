@@ -118,6 +118,14 @@ package's CHANGELOG names the profile version it now speaks.
 | life-advisor (private) | A consuming app, through was-react. |
 | was-conformance-suite | No App Connect-specific suite; the delegated grants the profile issues are exercised generically against servers (`client-delegation`). Re-check this row when the profile grows a server-visible surface. |
 
+**2026-09-03 waiver.** FW-344 made DIDAuth holder selection dispatch on the
+request's `acceptedMethods` (did:webvh when accepted, else did:web, the
+did:webvh log's projection id, else did:key). The byoe-react-examples,
+life-advisor, and was-conformance-suite rows are unaffected: each reaches
+DIDAuth only through was-react's hardcoded `acceptedMethods: [{ method: 'key'
+}]`, so they selected the did:key arm before this change and still do. The
+App Connect holder they see stays pinned to the client did:key either way.
+
 ## Ecosystem conventions
 
 - Cross-repo lessons (invariants, gotchas, and process recipes that span

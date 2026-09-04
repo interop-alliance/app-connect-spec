@@ -12,7 +12,10 @@
   single-verb ladder delegations on a bare Space URL) and the locked
   property is restated to cover it. 2026-09-01: clause A's predicate 1
   is narrowed by a target bound (the account Space's items subtree)
-  and an action bound (the closed WAS verb vocabulary).
+  and an action bound (the closed WAS verb vocabulary). 2026-09-03:
+  clause B gains a third enumerated shape (a rotation carrying a version
+  whose enrolled-client set changed, whose entry a rung of the appending
+  ladder signed).
 - Driving work: the public-computer posture redesign for the browser
   wallet -- an account with zero enrolled durable clients is anchored
   by a ladder-derived verification method in its document, and that
@@ -140,7 +143,7 @@ the ladder VMs. An entry is posture-changing iff S(V) differs from
 S(V-1), in either direction; ordinary client enrollment and
 revocation are excluded structurally, because a client's
 `keyAgreement` twin carries the `did:key` controller marker. A
-ladder-signed roster append is accepted in exactly two shapes:
+ladder-signed roster append is accepted in exactly three shapes:
 
 1. A roster's first entry -- creation, never extension.
 2. A rotation carrying a posture-changing document version, and
@@ -152,6 +155,35 @@ ladder-signed roster append is accepted in exactly two shapes:
    per entry, over the entry's set of signing keys. At most one of an
    entry's proofs may be by a ladder key; a rotation co-signed by a
    member stays licensed.
+3. A rotation carrying a document version V whose enrolled-client set
+   differs from version V-1's, in either direction, AND whose entry was
+   signed by a rung of the same ladder that signs the append (added
+   2026-09-03). The enrolled-client set is the `capabilityInvocation`
+   verification methods of version V, equivalently the `keyAgreement`
+   twins carrying the `did:key` controller marker. One-shot per version
+   under the same head comparison as shape 2, and under the same
+   single-ladder-proof refinement.
+
+   The signer conjunct is what keeps this shape out of the rejected
+   any-`keyAgreement`-change predicate. A client's own enrollment or
+   revocation entry is client-signed, so it mints no ladder shot, and
+   the class the license exists to exclude stays excluded. A shot is
+   minted only by the ladder holder's own world-readable act of
+   enrolling or removing a client, and only for that ladder. Without the
+   conjunct the owner's ordinary enrollment of a phone from a remembered
+   session would mint a shot. A phished credential's ladder could then
+   spend that shot on a silent rekey to recipients of its own.
+
+   Shape 3 is a verifier-side rule on an append-only log. A reader
+   without it refuses the whole roster log. The license throws from the
+   admission hook, and the verifier propagates that throw as a whole-log
+   refusal. Rollout is therefore verifier-first. Every roster-log reader
+   ships shape 3 before any writer emits one. The readers are
+   wallet-core's license module and the controller-inventory member it
+   reads, both wallets, and any consumer of the
+   `@interop/vh-resource-log` library. The encrypted-collections-spec
+   parties table is walked beside this spec's, that profile being the
+   Resource Log Profile's home.
 
 Everything else -- above all a rotation against an unchanged
 document, the silent-rekey shape -- is refused by every verifier.
@@ -161,14 +193,17 @@ The refusal is a write-time admission error, a new named class
 entry, not log corruption, and the profile's reject-the-whole-log
 severity does not apply.
 
-The locked property across both clauses, restated 2026-09-01: every
+The locked property across both clauses, restated 2026-09-01 and
+again 2026-09-03: every
 ladder delegation either needs a loud companion entry to resolve and
 stays inside the account Space's items subtree, can only write a log,
 or is a target-exact single-verb GET or DELETE on one Space of the
 delegator's own account -- a read, or a destruction whose account-Space
 case removes the log any record would live in and leaves no reader to
-remediate; every ladder roster append carries a loud document event's
-version. Predicate 1's target bound closes one gap the grantee-keyed
+remediate; every ladder roster append carries the version of a loud
+document event, either an inventory-changing one (the "posture-changing"
+of clause B above) or a change to the enrolled-client set that the same
+ladder signed. Predicate 1's target bound closes one gap the grantee-keyed
 form left open: a companion VM that also holds `capabilityDelegation`
 can mint onward grants no companion entry records, and every such
 grant is a child of the admitted delegation, so none of them reaches
@@ -229,6 +264,25 @@ account-deletion design's stated trade.
   targets.
 - An any-`keyAgreement`-change posture predicate: admits ordinary
   enroll/revoke, widening the license by exactly the excluded class.
+  Shape 3 was checked against this rejection when it was added
+  2026-09-03 and is not that predicate. Its signer conjunct means an
+  ordinary client-signed enrollment or revocation mints no ladder shot,
+  so the excluded class stays excluded.
+- The wider form of shape 3 weighed during drafting, in which any
+  version changing the enrolled-client set mints a shot for ANY standing
+  ladder, rejected 2026-09-03. There the shot is minted by someone
+  else's entry. The owner enrolls a phone from a remembered session, and
+  a phished credential's ladder spends that version on a rotation onto
+  recipients of its own, with the world-readable log showing only the
+  owner's enrollment.
+- Striking and reinstalling the ladder VM to mint a licensed version,
+  taken as the route for enrollment approval and client disconnect run
+  from a credential-only session, rejected 2026-09-03. It is
+  self-lockout. The struck VM signed the generation delegation and the
+  bridge the visit rides, so the visit that just lost both cannot
+  publish the reinstall entry. It also costs two permanent entries per
+  ceremony. The last-client transition keeps the pair, since there a
+  still-standing enrolled client publishes the reinstall.
 - A VM-type-driven posture set: equivalent in effect but fragile for
   the high-entropy passkey's plain `Multikey` entry.
 - An ordinal-prefix numeric controller-version comparison: diverges
@@ -278,6 +332,20 @@ so credential rotation is reachable as the remedy, the sibling's
 append is attributable in the roster log, and the stolen credential's
 standing wrap already opens every epoch.
 
+One premise of that bound has since been replaced, and the bound is
+re-derived without it 2026-09-03. The premise read that a sibling ladder
+stands only on an account with two or more standing credentials, and
+that such an account has an enrolled client by construction. A
+credential-only session can now add a passphrase or a passkey to a
+client-less account, so a second standing credential no longer implies
+an enrolled client. What remains carries the bound. The strike version's
+shot is still attributable in the roster log. The stolen credential's
+standing wrap already opens every epoch, so the append buys its holder
+no reading they lacked. A rotation wraps only to recipients the verified
+document lists. And credential rotation is now reachable from a
+credential-only session itself, the work this amendment comes from, so
+the remedy no longer depends on an enrolled client.
+
 ## Consequences
 
 - The loudness invariant becomes uniform across every axis: ladder
@@ -311,13 +379,20 @@ Reopen this decision when one or more of the following holds:
    the fail-open window closed, allowing the wallet-side publish rule
    to relax or the clause to harden into a hard requirement.
 2. A new ceremony legitimately needs a ladder-signed roster append
-   outside the two licensed shapes; extend the license as a new
+   outside the licensed shapes; extend the license as a new
    enumerated shape with its own controller-version rule, never by
    loosening the one-shot refinement. Considered 2026-08-28 by the
    credential-keyed ladder VM work and NOT exercised: the last-client
    transition strikes and reinstalls its own ladder VM instead, and the
    reinstall supplies an inventory-changing version the license already
-   admits. Clause B is unchanged.
+   admits. Clause B is unchanged. Exercised 2026-09-03 by the browser
+   wallet's credential-anchored ceremony branches. Enrollment approval
+   and client disconnect run from a credential-only session, where the
+   ladder signs the document entry and the roster append both, and
+   neither entry changes the credential inventory. Clause B gained shape
+   3, a new enumerated shape with its own controller-version rule, which
+   is the route this criterion prescribes. The one-shot refinement was
+   not loosened.
 3. The ladder VM's authority breadth gets a principled scoping story
    inside the capability bytes themselves (caveat-level restriction),
    making the server-side inspector redundant.
@@ -361,3 +436,13 @@ Reopen this decision when one or more of the following holds:
   Description is out of reach through every admitted shape. Driven by
   the browser wallet's FW-356 / FW-359 work and the reference server's
   roadmap; shipped in was-teaching-server 0.25.0.
+- 2026-09-03: clause B gains shape 3, admitting a ladder-signed rotation
+  that carries a version whose enrolled-client set changed and whose
+  entry a rung of the appending ladder signed. That is a widening, a new
+  admitted shape rather than a refinement; read the prior version for
+  the two-shape license. The one-shot refinement and the per-entry
+  single-ladder-proof rule are untouched. Rollout is verifier-first.
+  Every roster-log reader ships shape 3 before any writer emits one. The
+  WC-156 paragraph's bound is re-derived in place, one of its premises
+  having ended. Driven by the browser wallet's design for running the
+  account-management ceremonies from a credential-only session.
