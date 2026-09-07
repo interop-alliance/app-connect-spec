@@ -15,7 +15,10 @@
   and an action bound (the closed WAS verb vocabulary). 2026-09-03:
   clause B gains a third enumerated shape (a rotation carrying a version
   whose enrolled-client set changed, whose entry a rung of the appending
-  ladder signed).
+  ladder signed). 2026-09-07: clause B's scope is stated: it binds the
+  user key roster log alone, and a per-collection encryption descriptor
+  log admits a ladder-signed append on `assertionMethod` membership
+  alone.
 - Driving work: the public-computer posture redesign for the browser
   wallet -- an account with zero enrolled durable clients is anchored
   by a ladder-derived verification method in its document, and that
@@ -193,6 +196,30 @@ The refusal is a write-time admission error, a new named class
 entry, not log corruption, and the profile's reject-the-whole-log
 severity does not apply.
 
+Scope (stated 2026-09-07). Clause B binds the user key roster log, the
+log that governs the account's root key, and no other resource log. A
+per-collection encryption descriptor log (encrypted-collections-spec's
+log form, one log per governed collection) admits a ladder-signed
+append on `assertionMethod` membership at the anchored version alone,
+with no shape check and no one-shot. The silent-rekey shape the license
+exists to refuse is a rotation of the root key to recipients of a
+credential thief's choosing, invisible in every log. A descriptor
+append escrows one recipient into one collection, and lands as a
+hash-chained entry signed by that credential's ladder VM, auditable by
+the account's clients and attributable to the credential. Before the
+log form the same act was an unsigned Collection Description write
+under the generation delegation, so the governed form is louder than
+what it replaces, and a credential holder wanting more reach has the
+louder self-enrollment path already. The bound this leaves is
+detect-and-remediate: a recipient escrowed this way shows on the
+wallet's shared-collection listing, and credential rotation retires the
+signer, whose struck ladder VM then seals every collection log through
+the rotation's own full-state appends. Implementations parameterize the
+admission hook by log class rather than exempting per call site, so a
+new log class states its rule when it is introduced. Driven by the
+browser wallet's FW-134 (log-governed descriptors) and the rule that a
+transient session runs every ceremony a remembered one does.
+
 The locked property across both clauses, restated 2026-09-01 and
 again 2026-09-03: every
 ladder delegation either needs a loud companion entry to resolve and
@@ -203,7 +230,9 @@ case removes the log any record would live in and leaves no reader to
 remediate; every ladder roster append carries the version of a loud
 document event, either an inventory-changing one (the "posture-changing"
 of clause B above) or a change to the enrolled-client set that the same
-ladder signed. Predicate 1's target bound closes one gap the grantee-keyed
+ladder signed; a ladder-signed append to a per-collection descriptor
+log is outside this property and stands on `assertionMethod` membership
+alone, per the scope paragraph above. Predicate 1's target bound closes one gap the grantee-keyed
 form left open: a companion VM that also holds `capabilityDelegation`
 can mint onward grants no companion entry records, and every such
 grant is a child of the admitted delegation, so none of them reaches
@@ -446,3 +475,18 @@ Reopen this decision when one or more of the following holds:
   WC-156 paragraph's bound is re-derived in place, one of its premises
   having ended. Driven by the browser wallet's design for running the
   account-management ceremonies from a credential-only session.
+- 2026-09-07: clause B's scope is stated as the user key roster log, and
+  a per-collection encryption descriptor log is placed outside it: a
+  ladder-signed append there is admitted on `assertionMethod` membership
+  alone. That is a scoping of a clause whose text always said "roster",
+  not a change to any of its three shapes, but it does place a ladder
+  append outside the locked property for the first time, and the
+  property's restatement says so. The alternatives considered and
+  rejected are recorded in the browser wallet's FW-134: an annex-VM
+  signer (the transient VM stays out of `assertionMethod`, and the annex
+  is mortal while descriptor logs are permanent), delegation-chained
+  entry proofs (a new proof rule), a license anchored at the visit's
+  annex entry (unverifiable outside the account), a user-key-derived
+  assertion key (loses per-credential attribution), and refusing
+  descriptor-writing ceremonies on a transient session (out by the
+  full-session rule). Driven by freewallet FW-134.
