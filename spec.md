@@ -467,7 +467,11 @@ query as malformed unless both are present and are strings:
 
 The `appUrl` value MUST parse as an absolute URL [[URL]], MUST NOT carry a
 fragment, and its origin MUST equal the attested requesting [=origin=]. A
-[=wallet=] MUST treat a query violating any of these as malformed. Wherever
+[=wallet=] MUST treat a query violating any of these as malformed. No scheme
+constraint applies beyond the origin rule. A URL whose origin is opaque (a
+non-special scheme such as `file:` or an extension scheme) is same-origin with
+nothing but itself, so it never satisfies the origin check and a [=wallet=]
+MUST treat such an `appUrl` as malformed. Wherever
 this document stores or compares an `appUrl`, the value used is the parsed
 URL's serialization, so spellings that differ only in a default port, in
 percent-encoding case, or in dot-segments do not name distinct applications.
