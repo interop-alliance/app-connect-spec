@@ -15,8 +15,8 @@ also references the **WAS Encrypted Collections** profile ([WAS-EC], sibling
 checkout `../encrypted-collections-spec`) for envelope cryptography and
 recipient-key derivation.
 
-The profile is implemented by the **`@interop/wallet-core`** library and used
-by the **DCW** and **Freewallet** wallets (see reference checkouts below).
+The profile is implemented by the **`@interop/wallet-request`** library and
+used by the **DCW** and **Freewallet** wallets (see reference checkouts below).
 
 This is a **spec repo, not a code repo**. The deliverable is the rendered HTML
 document. There is no build/test/lint pipeline -- "correct" means the prose is
@@ -110,10 +110,11 @@ package's CHANGELOG names the profile version it now speaks.
 
 | Repo | Modules speaking the contract |
 | --- | --- |
-| wallet-core | The wallet-side implementation both wallets consume: `src/request/classify.ts` (`appConnectRequestOf`, the `AppConnectQuery` validation), `src/request/appKey.ts` (the app-key credential: mint / match / legacy re-issue / store-time refusal, the marker type and inline context), `src/request/composeVp.ts` (the response VP with the `zcap` array and `appConnect` marker). |
-| freewallet | Consent UI, credential storage, and the delegation machinery over wallet-core: `src/lib/walletRequest/` (esp. `appConnect.ts`), `WalletGetPage`. |
-| dcw (private) | The mobile wallet's App Connect flow, over the same wallet-core modules. |
-| was-react | The app side: `src/auth/loginRequest.ts` (`buildAppConnectVpr`), `src/identity/seedCredential.ts` (`findSeedCredential` / `parseSeedCredential`), `src/auth/verifyResponse.ts`. Counterpart-tested against wallet-core's real implementation in `src/auth/walletCoreCounterpart.test.ts`, which runs in its ordinary CI. |
+| wallet-request | The wallet-side implementation both wallets consume: `src/classify.ts` (`appConnectRequestOf`, the `AppConnectQuery` validation), `src/appKey.ts` (the app-key credential: mint / match / legacy re-issue / store-time refusal, the marker type and inline context), `src/composeVp.ts` (the response VP with the `zcap` array and `appConnect` marker). |
+| wallet-core | The account conventions the classifier recognizes through injected recognizers: the connect code (`src/enrollment/connectCode.ts`) and the `was-link` payload (`src/space/wasLink.ts`); the App Connect grant recorded on a Login activity (`src/space/activity.ts`). |
+| freewallet | Consent UI, credential storage, and the delegation machinery over wallet-request: `src/lib/walletRequest/` (esp. `appConnect.ts`), `WalletGetPage`. |
+| dcw (private) | The mobile wallet's App Connect flow, over the same wallet-request modules. |
+| was-react | The app side: `src/auth/loginRequest.ts` (`buildAppConnectVpr`), `src/identity/seedCredential.ts` (`findSeedCredential` / `parseSeedCredential`), `src/auth/verifyResponse.ts`. Counterpart-tested against wallet-request's real implementation in `src/auth/walletCoreCounterpart.test.ts`, which runs in its ordinary CI. |
 | byoe-react-examples | Example apps consuming the profile through was-react; the wallet-tier e2e drives a real freewallet popup. |
 | life-advisor (private) | A consuming app, through was-react. |
 | was-conformance-suite | No App Connect-specific suite; the delegated grants the profile issues are exercised generically against servers (`client-delegation`). Re-check this row when the profile grows a server-visible surface. |
@@ -147,9 +148,14 @@ behavior -- check with the user before editing anything in them.
 - [wallet-attached-storage-spec](https://github.com/w3c-ccg/wallet-attached-storage-spec)
   -- the WAS spec this profile layers on; its `spec.md` is the source of
   truth.
+- [wallet-request](https://github.com/interop-alliance/wallet-request) --
+  `@interop/wallet-request`, the library that implements the wallet side of
+  this profile (the request pipeline: classification, the app-key credential,
+  the response VP); shared by both wallets below.
 - [wallet-core](https://github.com/interop-alliance/wallet-core) --
-  `@interop/wallet-core`, the library that implements the wallet side of this
-  profile; shared by both wallets below.
+  `@interop/wallet-core`, the shared account layer beneath it (the did:webvh
+  account log, the Space layout, the Login activity the grant is recorded
+  on).
 - dcw (private repo) and
   [freewallet](https://github.com/interop-alliance/freewallet) -- the two
   wallets that speak App Connect. The canonical "does the spec match an
