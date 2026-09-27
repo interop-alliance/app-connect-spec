@@ -108,16 +108,22 @@ explicitly waived (`unaffected: <repo> (<why>)`). When the profile version
 changes (see the hosted context URL note in `spec.md`), each implementing
 package's CHANGELOG names the profile version it now speaks.
 
+The table also covers the client annex profile, whose decisions this repo
+records (`decisions/0001` to `0004`) ahead of its normative text. A server
+advertises that profile in its service description under
+`https://w3id.org/pws/client-annex`.
+
 | Repo | Modules speaking the contract |
 | --- | --- |
 | wallet-request | The wallet-side implementation both wallets consume: `src/classify.ts` (`appConnectRequestOf`, the `AppConnectQuery` validation), `src/appKey.ts` (the app-key credential: mint / match / legacy re-issue / store-time refusal, the marker type and inline context), `src/composeVp.ts` (the response VP with the `zcap` array and `appConnect` marker). |
-| wallet-core | The account conventions the classifier recognizes through injected recognizers: the connect code (`src/enrollment/connectCode.ts`) and the `was-link` payload (`src/space/wasLink.ts`); the App Connect grant recorded on a Login activity (`src/space/activity.ts`). |
-| freewallet | Consent UI, credential storage, and the delegation machinery over wallet-request: `src/lib/walletRequest/` (esp. `appConnect.ts`), `WalletGetPage`. |
-| dcw (private) | The mobile wallet's App Connect flow, over the same wallet-request modules. |
+| wallet-core | The account conventions the classifier recognizes through injected recognizers: the connect code (`src/enrollment/connectCode.ts`) and the `was-link` payload (`src/space/wasLink.ts`); the App Connect grant recorded on a Login activity (`src/space/activity.ts`). The client annex profile's wallet side: the ladder and its VM (`src/clientAnnex/ladder.ts`, `src/unlock/standingWebvh.ts`), the annex log (`src/clientAnnex/log.ts`), clause B's roster-log license (`src/resourceLog/`), and the host check against the service description entry (`src/clientAnnex/hostConformance.ts`). |
+| freewallet | Consent UI, credential storage, and the delegation machinery over wallet-request: `src/lib/walletRequest/` (esp. `appConnect.ts`), `WalletGetPage`. The client annex ceremonies over wallet-core's `/clientAnnex`, and the signup's host gate (`src/session/signup.ts`), the one place the service description entry is checked. |
+| dcw (private) | The mobile wallet's App Connect flow, over the same wallet-request modules. It publishes no ladder VM and runs no client annex ceremony, but reads ladder-anchored accounts through wallet-core's `/clients` and `/webvh` listings. |
+| was-teaching-server | The client annex profile's server side: clause A as the chain inspector (`src/lib/clientAnnexClause.ts`, recorded in that repo's `decisions/0002`), advertised by the `https://w3id.org/pws/client-annex` entry at `0.1` in its service description (`src/serviceDescription.ts`). |
 | was-react | The app side: `src/auth/loginRequest.ts` (`buildAppConnectVpr`), `src/identity/seedCredential.ts` (`findSeedCredential` / `parseSeedCredential`), `src/auth/verifyResponse.ts`. Counterpart-tested against wallet-request's real implementation in `src/auth/walletCoreCounterpart.test.ts`, which runs in its ordinary CI. |
 | byoe-react-examples | Example apps consuming the profile through was-react; the wallet-tier e2e drives a real freewallet popup. |
 | life-advisor (private) | A consuming app, through was-react. |
-| was-conformance-suite | No App Connect-specific suite; the delegated grants the profile issues are exercised generically against servers (`client-delegation`). Re-check this row when the profile grows a server-visible surface. |
+| was-conformance-suite | No App Connect-specific suite; the delegated grants the profile issues are exercised generically against servers (`client-delegation`). The client annex profile has a server-visible surface (clause A and the service description entry) and no suite yet. |
 
 **2026-09-03 waiver.** FW-344 made DIDAuth holder selection dispatch on the
 request's `acceptedMethods` (did:webvh when accepted, else did:web, the
@@ -126,6 +132,15 @@ life-advisor, and was-conformance-suite rows are unaffected: each reaches
 DIDAuth only through was-react's hardcoded `acceptedMethods: [{ method: 'key'
 }]`, so they selected the did:key arm before this change and still do. The
 App Connect holder they see stays pinned to the client did:key either way.
+
+**2026-09-27, the client annex service description entry.** Shipped:
+was-teaching-server lists the entry (0.38.0), wallet-core's
+`hostClaimsClientAnnexProfile` reads it, and freewallet's signup refuses a
+server that does not list it. unaffected: wallet-request, was-react,
+byoe-react-examples, and life-advisor (none of them reads the service
+description's annex entry or publishes a ladder VM); dcw (it signs up no
+ladder-anchored account); was-conformance-suite (no suite covers the
+profile yet; filed there as PWSCS-14).
 
 ## Ecosystem conventions
 
@@ -139,6 +154,15 @@ App Connect holder they see stays pinned to the client did:key either way.
   one `NNNN-slug.md` file per decision; the convention and template are
   canonical in
   [isomorphic-lib-template's `decisions/`](https://github.com/interop-alliance/isomorphic-lib-template/tree/main/decisions).
+- Open work items for this spec live in [_spec/ROADMAP.md](_spec/ROADMAP.md)
+  as `ACS-N` items; shipped items move to the archive beside it so ids
+  keep resolving. An item is filed in the roadmap of the repo whose document
+  it changes: work on PWS core, its authorization profile, or Encrypted Collections goes in those repos' roadmaps, not here. An item
+  moved between roadmaps keeps its old id in the source archive with a
+  pointer to the new one. The item format and the `touches:` rule are
+  canonical in
+  [isomorphic-lib-template's AGENTS.md](https://github.com/interop-alliance/isomorphic-lib-template/blob/main/AGENTS.md)
+  ("Roadmap & Task Conventions").
 
 ## Reference material (read-only, outside this repo)
 
