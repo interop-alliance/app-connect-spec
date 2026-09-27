@@ -466,7 +466,9 @@ query as malformed unless both are present and are strings:
 | `appUrl` | The application's canonical URL, identifying it among the applications on its origin. Used to match an existing [=app-key credential=] or to mint a new one ([[[#app-key-matching]]]). |
 
 The `appUrl` value MUST parse as an absolute URL [[URL]], MUST NOT carry a
-fragment, and its origin MUST equal the attested requesting [=origin=]. A
+query or a fragment, and its origin MUST equal the attested requesting
+[=origin=]. An empty query or fragment (a bare trailing `?` or `#`) counts as
+carrying one. A
 [=wallet=] MUST treat a query violating any of these as malformed. No scheme
 constraint applies beyond the origin rule. A URL whose origin is opaque (a
 non-special scheme such as `file:` or an extension scheme) is same-origin with
@@ -485,8 +487,8 @@ one URL; a deployment that wants two identities is two applications, at two
 URLs. This mirrors how the Web App Manifest identifies an installable
 application: its `id` member is likewise a URL within the application's origin
 [[APPMANIFEST]]. An application that has a manifest is well served by using
-its processed manifest `id` as its `appUrl` -- once processed, both are
-absolute same-origin URLs, and the application then carries one identity on
+its processed manifest `id` as its `appUrl`, provided that `id` carries no
+query. Once processed, both are absolute same-origin URLs, and the application then carries one identity on
 the platform and in this profile. Because the browser attests nothing finer
 than the origin,
 everything below the origin is cooperative namespacing, not isolation
@@ -728,9 +730,10 @@ broader allowed-action set than the descriptor form of the same target.
 
 Honoring that parity requires the wallet to know the classification of its own
 collections, independently of how a request named it. In particular, it should
-know which of them are public ([[[#descriptor-public-collection]]]) and which
-are protected ([[[#protected-collections]]]), since a string target carries no
-descriptor type to classify it by.
+know which of them are public ([[[#descriptor-public-collection]]]), which
+are protected ([[[#protected-collections]]]), and which are withheld
+([[[#withheld-collections]]]), since a string target carries no descriptor
+type to classify it by.
 
 An [=unsatisfiable=] request entry MUST NOT produce a [=grant=]. The wallet
 MUST skip it at delegation time and MUST show it on the consent surface as
@@ -960,7 +963,9 @@ resolve the target [=unsatisfiable=] if any of the following holds:
 
 Otherwise the first path segment after the Space path is the collection id.
 It MUST match the collection name grammar ([[[#collection-name-grammar]]]) or
-the target resolves [=unsatisfiable=]. The resolved class is *protected
+the target resolves [=unsatisfiable=]. A target whose collection id names a
+withheld collection resolves [=unsatisfiable=]
+([[[#withheld-collections]]]). Otherwise the resolved class is *protected
 collection* if that id names a protected collection
 ([[[#protected-collections]]]), and *collection* otherwise.
 
@@ -1010,8 +1015,9 @@ system state. This MAY include:
 * the wallet's own standard content collections -- the collections the wallet
   itself writes the user's credentials, activity, and application-domain data
   into;
-* the account's system collections -- those holding the account's published
-  identity artifacts and its key material.
+* the account's system collections that hold its published identity
+  artifacts. A collection holding key material is withheld instead
+  ([[[#withheld-collections]]]).
 
 Requests resolving onto a protected collection are bounded as follows:
 
@@ -1029,6 +1035,33 @@ the intended way for an application to be given read access to the user's own
 data, and resolves in the *share* class rather than the *protected collection*
 class. Both classes are read-only, so the distinction affects only the
 decrypt axis and the consent copy.
+
+### Withheld collections {#withheld-collections}
+
+A [=wallet=] MUST maintain a set of **withheld collections**: the collections
+in the user's Space that no request may reach, whatever it asks for. The set
+MUST include every collection whose contents would let a reader do either of
+the following:
+
+* test a guess at an unlock secret offline;
+* recover key material, such as the account's wrapped keys or an
+  [=application=]'s [=seed=].
+
+A capability request whose target resolves onto a withheld collection MUST
+resolve [=unsatisfiable=]. This holds for every descriptor type, for a string
+target naming the collection, and for a string target naming a Resource
+inside it. A withheld collection is never in the *protected collection* or
+*share* class, so it gets no read-only grant either.
+
+<div class="note">
+Read-only access is not enough of a bound here. A wrapped key is public
+material only when the secret it is wrapped to has high entropy. A recipient
+key derived from a passphrase, stored beside a wrap of the user's key, lets
+anyone holding the record grind the passphrase without contacting any
+server. A correct guess yields the wrapped key and the passphrase together.
+The consent screen cannot convey that risk, so the wallet refuses before
+asking.
+</div>
 
 ## The App Key Credential {#app-key-credential}
 
