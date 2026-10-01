@@ -62,6 +62,12 @@ This document defines:
   [[WAS-EC]]: enrolled clients authorize appends per its
   external-authorization rule ([[[#resource-log-profile]]]).
 
+The descriptor vocabulary and the grant rules speak of the [=requester=], the
+party that asks for grants and receives them, because other request channels
+reuse them. The [=app-key credential=], the attested [=origin=], `appUrl`, and
+the response presentation belong to the App Connect exchange itself, so the
+text about them speaks of the [=application=].
+
 This document does **not** define:
 
 * **the storage protocol.** Spaces, Collections, Resources, the HTTP API, and
@@ -202,7 +208,7 @@ value.
     [=grants=] to a closed vocabulary of uppercase HTTP
     method names; see [[[#action-vocabulary]]].</dd>
 
-  <dt><dfn data-lt="applications|requesting party">application</dfn></dt>
+  <dt><dfn data-lt="applications">application</dfn></dt>
   <dd>An application -- typically a web application, though non-browser
     applications participate over other transports ([[[#request-transport]]]) --
     that connects to a user's [=wallet=] through an App
@@ -213,7 +219,7 @@ value.
     the identifier its transport attests -- for an in-browser application, its
     [=origin=] -- and by the <code>app</code> block of its
     [=AppConnectQuery=]. Every application this document profiles is a
-    [=public client=].</dd>
+    [=public client=]. An application is one kind of [=requester=].</dd>
 
   <dt><dfn data-lt="AppConnectQuery|app connect query">App Connect query
     (AppConnectQuery)</dfn></dt>
@@ -294,7 +300,7 @@ value.
     ([[[#resource-log-profile]]]). Enrolled clients are typically the user's
     other wallet installations (a browser wallet and a native wallet on the
     same account, say), and they are peers: each carries the account's full
-    authority, unlike an [=application=], which only ever holds capabilities
+    authority, unlike a [=requester=], which only ever holds capabilities
     delegated to it. How a wallet enrolls a client, revokes one, or recovers
     from a lost secret is wallet-internal and out of scope
     ([[[#scope]]]).</dd>
@@ -321,8 +327,8 @@ value.
   <dd>The value of a capability request's <code>invocationTarget</code>: either
     an absolute URL, or an abstract object of the form
     <code>{ type, name }</code> that the [=wallet=] resolves against the user's
-    own [=Space=]. The descriptor form exists because the requesting
-    [=application=] does not know where the user's Space lives. See
+    own [=Space=]. The descriptor form exists because the [=requester=] does
+    not know where the user's Space lives. See
     [[[#descriptors]]].</dd>
 
   <dt><dfn data-lt="origins|requesting origin">origin</dfn></dt>
@@ -341,6 +347,16 @@ value.
     custody of the [=seed=], not by anything the client itself holds. Every
     application this document's normative prose addresses is a public client.
     Contrast [=confidential client=].</dd>
+
+  <dt><dfn data-lt="requesters|requesting party">requester</dfn></dt>
+  <dd>The party that sends a [=wallet=] a request for [=grants=] and receives
+    the grants delegated in answer: an app, service, or agent. An
+    [=application=] connecting through an [=App Connect exchange=] is one
+    kind of requester. This document says requester wherever it means the
+    requesting party in general, and says application where the text is about
+    the App Connect exchange itself. A requester may declare a display name for
+    itself (<code>app.name</code>, or the <code>agent</code> member of
+    [[[#agent-member]]]); that name is not evidence of identity.</dd>
 
   <dt><dfn data-lt="resource logs">resource log</dfn></dt>
   <dd>The hash-linked, externally authorized log format of [[WAS-EC]]
@@ -412,7 +428,7 @@ carrying a [[VCALM]] exchange, such as VCALM's own exchange endpoints, and
 receives the same response presentation back.
 
 What any such transport must replicate is CHAPI's one load-bearing property:
-attesting the identity of the requesting party to the wallet
+attesting the identity of the [=requester=] to the wallet
 ([[[#security-origin]]]). Wherever this document relies on the
 browser-attested [=origin=], a non-browser transport must supply an
 equivalently attested application identifier, attested by the transport or
@@ -499,6 +515,46 @@ A [=wallet=] that does not recognize the `AppConnectQuery` type MUST NOT
 attempt to satisfy it partially. Its response will therefore carry no [=app-key
 credential=], which the application detects per [[[#wallet-unsupported]]].
 
+### The `agent` member {#agent-member}
+
+A verifiable presentation request MAY carry an `agent` member at its root,
+beside `query`, `challenge`, and `domain`. It is the [=requester=]'s
+self-declared display name. It sits at the root rather than inside a query
+because one requester sends the whole request.
+
+| Member       | Required                     | Value                                                   |
+|--------------|------------------------------|---------------------------------------------------------|
+| `agent`      | no                           | An object naming the requester.                         |
+| `agent.name` | yes, when `agent` is present | A human-readable name for the wallet's consent surface. |
+
+A [=wallet=] MUST treat the request as malformed when `agent` is present and
+any of the following holds:
+
+1. `agent` is not a JSON object. An array and `null` are not objects.
+2. `agent.name` is absent or is not a string.
+3. `agent.name`, with leading and trailing white space removed, is empty. White
+   space here is what ECMAScript's `String.prototype.trim` removes, line
+   terminators included.
+4. The trimmed `agent.name` is longer than 64 UTF-16 code units.
+5. The trimmed `agent.name` contains a control character, that is, a code
+   point of Unicode general category `Cc`. Line breaks are control characters.
+
+A wallet uses the trimmed value wherever it shows or records the name. This
+profile defines no other member of `agent`, and a wallet ignores any other
+member it carries.
+
+`agent.name` is display text only. Like `app.name`, it is attacker-controlled
+and MUST NOT be treated as evidence of identity. It names the requester on a
+request that carries no `app` block, such as a standalone
+`AuthorizationCapabilityQuery` [[VCALM]] sent over a transport that attests no
+origin. It never stands in for the grantee DID such a request names
+([[[#consent]]]).
+
+An `agent` member MAY accompany an [=AppConnectQuery=]. The `app.name` is then
+the name the consent surface shows, and a wallet MUST NOT show `agent.name` in
+its place. The rules above still apply, so a malformed `agent` member makes an
+App Connect request malformed too.
+
 ### Exclusivity {#request-exclusivity}
 
 An App Connect request asks for exactly one thing: a connection, so that
@@ -536,8 +592,8 @@ malformed.
 The exclusivity rules exist because an App Connect exchange has one consent
 surface describing one relationship. Mixing in a credential-sharing query, a
 standalone capability query, or any other request type would put two unrelated
-decisions behind one approval, with the second one described by the requesting
-party's own free-text `reason` strings or by whatever surface that type would
+decisions behind one approval, with the second one described by the
+[=requester=]'s own free-text `reason` strings or by whatever surface that type would
 otherwise carry.
 
 ### Capability requests {#capability-query}
@@ -773,6 +829,7 @@ This registry is normative. The following descriptor types are defined.
 |--------------------------------------------------|----------|---------------------|----------------------------------------|
 | `https://w3id.org/byoe#private-collection`       | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
 | `https://w3id.org/byoe#public-collection`        | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
+| `https://w3id.org/byoe#plaintext-collection`     | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
 | `https://w3id.org/byoe#shared-wallet-collection` | required | `<spaceUrl>/<name>` | `GET`, `HEAD`                          |
 
 Where `name` is required, a [=wallet=] MUST validate it against the collection
@@ -781,8 +838,8 @@ name grammar ([[[#collection-name-grammar]]]) and MUST resolve the descriptor
 
 #### `#private-collection` {#descriptor-private-collection}
 
-`https://w3id.org/byoe#private-collection` requests an application-scoped
-[=collection=] in the user's Space, named by `name`.
+`https://w3id.org/byoe#private-collection` requests a [=collection=] for the
+[=requester=]'s own data in the user's Space, named by `name`.
 
 * It resolves to `<spaceUrl>/<name>`.
 * If the named collection does not already exist, the wallet MUST provision it
@@ -790,7 +847,7 @@ name grammar ([[[#collection-name-grammar]]]) and MUST resolve the descriptor
 * A collection provisioned under this descriptor MUST be encrypted from
   creation ([[[#encrypted-by-default]]]).
 * Its allowed actions are the full action vocabulary: this is the
-  application's own data, and the consent surface plus the shorter write
+  requester's own data, and the consent surface plus the shorter write
   lifetime ([[[#ttl]]]) are what bound it.
 * If `name` happens to be one of the wallet's own protected collections
   ([[[#protected-collections]]]), the resolved class is
@@ -813,8 +870,8 @@ contents are readable by anyone on the web without authorization.
   capability-authorized, so the wallet still delegates an ordinary
   collection-scoped capability alongside setting the policy.
 * Its allowed actions are the full action vocabulary, the same as a private
-  collection's: published content is still the application's own data, and
-  un-publishing is as much data management as publishing. An application may
+  collection's: published content is still the requester's own data, and
+  un-publishing is as much data management as publishing. A requester may
   rewrite (`PUT`) or retract (`DELETE`) what it published. Retraction removes
   the stored copy, not copies already fetched -- that is the nature of
   publication, not a reason to forbid it.
@@ -825,25 +882,65 @@ contents are readable by anyone on the web without authorization.
   request.
 * An idempotent re-grant is unaffected: a `#public-collection` descriptor
   naming a collection that already exists *and is already public* stays
-  satisfiable, and reconnecting an application to the collection it previously
+  satisfiable, and reconnecting a requester to the collection it previously
   published into behaves exactly as the first connect did
   ([[[#provisioning]]]).
 * A `#public-collection` descriptor naming a protected collection
   ([[[#protected-collections]]]) MUST resolve [=unsatisfiable=],
   unconditionally. This is the special case of the conversion rule that holds
-  even where a wallet's own bookkeeping is uncertain: a requesting party can
+  even where a wallet's own bookkeeping is uncertain: a [=requester=] can
   never flip a user's own credentials, activity, or published identity public.
 
 <div class="note">
 The conversion rule is broader than the protected-collection refusal on
 purpose. Protected collections are the data a user would obviously not want
-published, but they are not the only such data: a collection an application
-provisioned privately on an earlier connect, and has been writing private data
-into ever since, is equally not something a later request should be able to
+published, but they are not the only such data: a collection provisioned
+privately for a requester on an earlier connect, which the requester has been
+writing private data into ever since, is equally not something a later request should be able to
 turn world-readable. Making publicness a property fixed at creation removes the
 whole class of conversion requests rather than enumerating which conversions are
 unacceptable.
 </div>
+
+#### `#plaintext-collection` {#descriptor-plaintext-collection}
+
+`https://w3id.org/byoe#plaintext-collection` requests a [=collection=] stored
+in [plaintext](https://w3c-ccg.github.io/wallet-attached-storage-spec/#plaintext-collection)
+([[WAS]]) that stays capability-gated. It carries no world-readable access
+policy.
+
+* It resolves to `<spaceUrl>/<name>`.
+* If the named collection does not already exist, the wallet MUST provision it
+  before delegating, per [[[#provisioning]]]. The wallet MUST provision it as
+  plaintext, with no access policy and no encryption descriptor
+  ([[[#encrypted-by-default]]]).
+* Its allowed actions are the full action vocabulary, the same as a private
+  collection's: this is the requester's own data, and the consent surface plus
+  the shorter write lifetime ([[[#ttl]]]) are what bound it.
+* An idempotent re-grant is unaffected: a `#plaintext-collection` descriptor
+  naming a collection that already exists, is plaintext, and is not public
+  stays satisfiable, and reconnecting behaves exactly as the first connect did
+  ([[[#provisioning]]]).
+* A `#plaintext-collection` descriptor naming an existing encrypted collection
+  MUST resolve [=unsatisfiable=]. So MUST one naming an existing public
+  collection. The descriptor does not convert a collection in either
+  direction. A wallet MUST NOT strip a collection's encryption, and MUST NOT
+  drop a collection's public access policy, in response to a request.
+* If `name` is one of the wallet's own protected collections
+  ([[[#protected-collections]]]) and that collection is plaintext and not
+  public, the resolved class is *protected collection* and the read-only bound
+  applies instead, as for `#private-collection`. A protected collection that is
+  encrypted or public falls under the refusal above. A wallet MUST NOT
+  provision over a protected collection.
+* Such a collection carries no key-epoch roster, so a grantee holds no decrypt
+  axis to remove. Ending a grantee's access is revocation of its
+  [=capability=] alone, as for a public collection.
+
+The descriptor is for data the storage server should be able to read without
+the data being published. Examples are a collection an indexer reads, or one a
+service reads through a capability of its own. Choosing it trades the
+server-side confidentiality an encrypted collection gives for that
+readability, so the consent surface states it ([[[#consent]]]).
 
 #### `#shared-wallet-collection` {#descriptor-shared-wallet-collection}
 
@@ -853,7 +950,7 @@ to an encrypted collection the wallet already owns.
 * It resolves to `<spaceUrl>/<name>`.
 * `name` MUST name a collection the wallet itself owns and encrypts -- one
   of the wallet's own standard encrypted collections. A plaintext collection, a
-  collection provisioned for an application, the [=Space=] itself, and a name
+  collection provisioned for a [=requester=], the [=Space=] itself, and a name
   the wallet does not recognize MUST all resolve [=unsatisfiable=].
 * Because satisfiability is decided by looking the name up in the set of
   collections the wallet owns and encrypts, that lookup subsumes the collection
@@ -876,7 +973,7 @@ to an encrypted collection the wallet already owns.
 * The recipient key is never carried in the request; see
   [[[#recipient-derivation]]].
 
-Granting only the capability would hand the application ciphertext it cannot
+Granting only the capability would hand the requester ciphertext it cannot
 open, which surfaces to a user as corrupt data rather than as a failed share.
 Granting only recipiency would leave a reader in the roster with no way to
 fetch.
@@ -912,7 +1009,7 @@ implementation assigns them different semantics.
 
 | Reserved type IRI                          | Reserved for                                                                                            |
 |--------------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `https://w3id.org/byoe#managed-collection` | A future write-bearing grant class for applications acting as the authoritative writer of a collection. |
+| `https://w3id.org/byoe#managed-collection` | A future write-bearing grant class for requesters acting as the authoritative writer of a collection.   |
 | `https://w3id.org/byoe#publish-collection` | A future standing publication grant.                                                                    |
 | `https://w3id.org/byoe#collection-policy`  | A future runtime access-policy control descriptor.                                                      |
 | `https://w3id.org/byoe#space`              | A future Space-scoped read grant; this profile grants collection-scoped access only ([[[#string-targets]]]). |
@@ -933,15 +1030,17 @@ silently narrow the request into something it does understand.
 
 <div class="note">
 This is the extensibility safety rule of the whole profile, and it is what
-makes new descriptor types deployable at all. The application-side reasoning
-runs the other way around: an application that asks for a
+makes new descriptor types deployable at all. The requester-side reasoning
+runs the other way around: a requester that asks for a
 `#public-collection` and is answered by a wallet that predates the type sees a
 visible refusal, and knows its collection was not created. If the wallet had
-instead degraded the request to `#private-collection`, the application would have been
+instead degraded the request to `#private-collection`, the requester would have been
 handed a *private* collection it believes is public, and would publish into it.
-The same argument covers `#shared-wallet-collection`, whose fused axes cannot be
-partially honored, and the `AppConnectQuery` type itself
-([[[#wallet-unsupported]]]).
+The same argument covers `#plaintext-collection`. Degraded to
+`#private-collection`, it would leave the server-side reader the requester
+planned for with a collection it cannot read. It also covers
+`#shared-wallet-collection`, whose fused axes cannot be partially honored, and
+the `AppConnectQuery` type itself ([[[#wallet-unsupported]]]).
 </div>
 
 ### String targets {#string-targets}
@@ -971,6 +1070,18 @@ collection* if that id names a protected collection
 
 A string target MUST NOT cause provisioning: it names something the wallet
 either already has or does not.
+
+A string target admits its grantee to no key roster. A [=wallet=] MAY refuse
+a string target naming an existing encrypted collection, or a Resource inside
+one, when the grantee's key-agreement key is not a recipient of that
+collection's current key epoch. Such a grant would read only ciphertext, since
+its grantee is not an [=epoch-roster recipient=]. A wallet that refuses SHOULD
+tell the requester's developer to request the collection with a
+`https://w3id.org/byoe#private-collection` descriptor naming the same
+collection ([[[#descriptor-private-collection]]]). That is the form that adds
+the grantee as a recipient ([[[#provisioning]]]). This profile defines no
+message for delivering the refusal to the exchange, so the wallet shows it to
+the user.
 
 <div class="note">
 Rules 2 and 3 refuse rather than rewrite. A [[WAS]] server authorizes a
@@ -1022,16 +1133,19 @@ system state. This MAY include:
 Requests resolving onto a protected collection are bounded as follows:
 
 * the resolved class is *protected collection*, whose allowed actions are
-  read-only ([[[#allowed-actions]]]). A requesting party may read the user's
+  read-only ([[[#allowed-actions]]]). A [=requester=] may read the user's
   own data
   when the user consents, and may never rewrite or delete it;
 * a `#public-collection` descriptor whose `name` resolves to a protected
   collection MUST resolve [=unsatisfiable=]
   ([[[#descriptor-public-collection]]]);
+* a `#plaintext-collection` descriptor whose `name` resolves to an encrypted
+  or public protected collection MUST resolve [=unsatisfiable=]
+  ([[[#descriptor-plaintext-collection]]]);
 * a wallet MUST NOT provision over one.
 
 A `#shared-wallet-collection` descriptor naming an encrypted protected collection is
-the intended way for an application to be given read access to the user's own
+the intended way for a [=requester=] to be given read access to the user's own
 data, and resolves in the *share* class rather than the *protected collection*
 class. Both classes are read-only, so the distinction affects only the
 decrypt axis and the consent copy.
@@ -1640,7 +1754,8 @@ At step 5 of [[[#response-verification]]], an [=application=] MUST check that:
 5. all grants resolve to a single storage host and a single [=Space=];
    a grant set spanning two hosts or two Spaces MUST be rejected;
 6. every collection the application requested as its own (that is, via
-   `#private-collection` or `#public-collection`) is covered by a grant whose
+   `#private-collection`, `#public-collection`, or `#plaintext-collection`) is
+   covered by a grant whose
    `allowedAction` includes every action the application requires of it, per
    [[[#required-actions]]];
 7. at least one grant is present whenever the application requested at least
@@ -1666,18 +1781,19 @@ The actions an [=application=] requires of a collection MUST be within the
 allowed actions of the descriptor class it used to request that collection
 ([[[#allowed-actions]]]):
 
-| Requested via         | Actions the application may require                  |
-|-----------------------|------------------------------------------------------|
-| `#private-collection` | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
-| `#public-collection`  | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
+| Requested via           | Actions the application may require                  |
+|-------------------------|------------------------------------------------------|
+| `#private-collection`   | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
+| `#public-collection`    | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
+| `#plaintext-collection` | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
 
 An application MUST NOT require an action outside the allowed actions of the
 class it requested, and MUST NOT fail a connection because a grant lacks such an
 action.
 
 <div class="note">
-Both collection classes currently allow the full action vocabulary, so today
-this rule bounds nothing. It exists so the two conformance classes cannot
+All three collection descriptor types currently allow the full action
+vocabulary, so today this rule bounds nothing. It exists so the two conformance classes cannot
 contradict each other when a class *does* bound actions -- as future
 descriptor classes may ([[[#descriptor-registry]]]). An application that
 required an action its class never allows would reject the capped grant that a
@@ -1820,7 +1936,7 @@ re-running it*. Concretely:
   so that a failure after it leaves a returning connection rather than a second
   identity ([[[#app-key-minting]]]).
 
-A wallet MUST NOT leave the exchange in a state the [=application=] or the user
+A wallet MUST NOT leave the exchange in a state the [=requester=] or the user
 must manually undo, and MUST NOT require a partial failure to be repaired by any
 step other than re-running the exchange or the wallet's own maintenance.
 
@@ -1855,7 +1971,7 @@ are explicitly not the removal mechanism, least of all for shares.
 
 The action vocabulary is closed: the five tokens below are the only actions
 this profile recognizes, and the set is not extensible by request. No
-mechanism in this profile lets an application, a wallet, or a future
+mechanism in this profile lets a requester, a wallet, or a future
 descriptor class introduce an action outside it.
 
 ```
@@ -1891,10 +2007,14 @@ This table is normative.
 
 | Target class         | Allowed actions                        | Rationale                                                                                                  |
 |----------------------|----------------------------------------|------------------------------------------------------------------------------------------------------------|
-| protected collection | `GET`, `HEAD`                          | A requesting party may read the user's own data on consent; it may never rewrite or delete it.             |
+| protected collection | `GET`, `HEAD`                          | A requester may read the user's own data on consent; it may never rewrite or delete it.                    |
 | share                | `GET`, `HEAD`                          | A share hands over decryption as well as fetch; it is never a write grant.                                 |
-| public collection    | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The application's own published data; un-publishing and revision are data management like any other write. |
-| collection           | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The application's own data, bounded by consent and by the shorter write lifetime.                          |
+| public collection    | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The requester's own published data; un-publishing and revision are data management like any other write.   |
+| collection           | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The requester's own data, bounded by consent and by the shorter write lifetime.                            |
+
+A `#plaintext-collection` target resolves in the *collection* class, as a
+`#private-collection` target does. Whether a collection is encrypted changes
+what a grantee can decrypt, not what it may do.
 
 The resulting `allowedAction` array MUST be ordered as in the table above, not
 by the order the request asked in, so that equivalent requests yield
@@ -1924,7 +2044,7 @@ minted per (user, application, origin), so the [=connecting DID=] derived from
 it is distinct for every user ([[[#privacy-per-user]]]).
 
 <div class="note">
-A channel where the requesting party names its own `controller` -- such as a
+A channel where the [=requester=] names its own `controller` -- such as a
 standalone `AuthorizationCapabilityQuery` [[VCALM]] -- cannot make that
 guarantee: nothing in such an exchange reveals whether the same controller was
 named for another user. That gap is one more reason this profile never accepts
@@ -1935,7 +2055,7 @@ a requester-named controller.
 
 Where an App Connect grant makes the grantee an [=epoch-roster recipient=],
 that is, a `#shared-wallet-collection` grant ([[[#descriptor-shared-wallet-collection]]]) or
-the provisioning of an encrypted application collection
+the provisioning of an encrypted collection under `#private-collection`
 ([[[#encrypted-by-default]]]), the recipient's key-agreement key MUST be
 *derived from the grantee's controller DID*.
 
@@ -1968,7 +2088,7 @@ because the collection may not exist until provisioning runs. A wallet is
 therefore not required to reach the [=unsatisfiable=] verdict before delegation
 begins; it is instead required to leave any resulting partial failure
 repairable by re-running the exchange, per [[[#resumability]]]. A wallet
-MUST NOT leave the application holding an inconsistent set of grants that only
+MUST NOT leave the requester holding an inconsistent set of grants that only
 manual intervention could correct.
 
 The byte-level derivation, the resulting recipient identifier, and the roster
@@ -1979,6 +2099,12 @@ the refusal.
 
 When a satisfiable grant names a collection that does not yet exist, the
 [=wallet=] MUST provision it before delegating.
+
+A wallet MUST provision the collection in the form its descriptor type names:
+encrypted under `#private-collection` ([[[#encrypted-by-default]]]), plaintext
+with a world-readable access policy under `#public-collection`
+([[[#descriptor-public-collection]]]), and plaintext with no access policy under
+`#plaintext-collection` ([[[#descriptor-plaintext-collection]]]).
 
 Provisioning MUST be idempotent. Re-running an App Connect exchange, in
 whole or in part, MUST NOT change the outcome. In particular:
@@ -1992,26 +2118,37 @@ whole or in part, MUST NOT change the outcome. In particular:
   epoch's recipients -- the state left by a previous revocation -- the wallet
   MUST add the grantee as a recipient rather than starting a new roster.
 
+The epoch and recipient rules above apply to an encrypted collection. A
+plaintext collection has no key epochs, so re-provisioning one leaves it as it
+stands.
+
 A wallet MUST NOT provision over a protected collection
 ([[[#protected-collections]]]).
 
 ### Encrypted by default {#encrypted-by-default}
 
-A private collection provisioned for an [=application=] under
-`#private-collection` MUST be encrypted from creation. There is no unencrypted
-intermediate state, and no later migration step in which existing contents are
-converted.
+A collection provisioned under `#private-collection` MUST be encrypted from
+creation. There is no unencrypted intermediate state, and no later migration
+step in which existing contents are converted. This default covers
+`#private-collection`. The two plaintext descriptor types below are the
+exceptions, and each is the user's explicit choice on the consent surface
+([[[#consent]]]).
 
-Two invariants hold for such a collection:
+Two invariants hold for an encrypted collection:
 
 * **The collection owner is always a recipient.** The user, as the owner of the
   Space, MUST be an [=epoch-roster recipient=] of every encrypted collection in
   their own Space. Any departure from this MUST be an explicit consent surface,
   never a silent default.
-* **The grantee is a recipient by derivation.** The application is added as a
+* **The grantee is a recipient by derivation.** The [=requester=] is added as a
   recipient using the key derived from its controller DID
-  ([[[#recipient-derivation]]]); the wallet never sees the application's
-  [=seed=], and the application never needs the user's own key.
+  ([[[#recipient-derivation]]]). The derivation uses no secret of the
+  requester's, and the requester never needs the user's own key.
+
+A collection provisioned under `#plaintext-collection` MUST be plaintext and
+MUST NOT be given an encryption descriptor
+([[[#descriptor-plaintext-collection]]]). It is still not world-readable: the
+wallet sets no access policy on it.
 
 A collection provisioned under `#public-collection` MUST be plaintext and MUST
 NOT be given an encryption descriptor ([[[#descriptor-public-collection]]]).
@@ -2022,7 +2159,7 @@ Every delegated grant MUST carry an `expires` value.
 
 A [=wallet=] SHOULD differentiate lifetimes by grant kind:
 
-* a **read-only** grant on an application collection SHOULD be the longest of
+* a **read-only** grant on a requester's collection SHOULD be the longest of
   the ordinary lifetimes;
 * a **write-bearing** grant -- one whose capped actions include anything beyond
   `GET` and `HEAD` -- SHOULD be shorter, since a leaked write grant can mutate
@@ -2039,7 +2176,7 @@ A grant's lifetime is also bounded by the capability it is delegated from. A
 wallet may delegate from a session-scoped intermediate capability rather than
 directly from the Space root capability; a browser wallet does this for a visit
 on a shared computer. The grant's `expires` can then be no later than that
-parent's, so the lifetime the application receives can be shorter than the
+parent's, so the lifetime the requester receives can be shorter than the
 figures above.
 </div>
 
@@ -2071,15 +2208,25 @@ This profile states a normative minimum for the consent surface:
    read.
 4. A `#public-collection` row MUST state that anyone on the web will be able to
    read the collection.
-5. A whole-Space row and a write-bearing row MUST each be distinguishable from
+5. A `#plaintext-collection` row MUST state that the collection's contents are
+   readable in the clear by the storage server's operator, and that they stay
+   unreadable by the public. Storing the collection in plaintext is the user's
+   choice to make, so the user needs to see it.
+6. A whole-Space row and a write-bearing row MUST each be distinguishable from
    an ordinary read row.
-6. The App Connect consent surface supersedes per-grant `reason` strings; per
+7. The App Connect consent surface supersedes per-grant `reason` strings; per
    [[[#capability-query]]] request entries carry none, and a wallet MUST NOT
    display one.
 
-Where the surface shows requesting-party-supplied free text (the `app.name`),
-it MUST be rendered so that the text cannot be mistaken for wallet-authored
-copy or for an identifier the wallet verified.
+Where the surface shows [=requester=]-supplied free text (the `app.name`, or
+the `agent.name` of [[[#agent-member]]]), it MUST be rendered so that the text
+cannot be mistaken for wallet-authored copy or for an identifier the wallet
+verified.
+
+On a request that names its own grantee DID ([[[#delegation-target]]]), an
+`agent.name` is shown beside that DID and does not replace it. A requester
+that names itself by neither `app.name` nor `agent.name` is shown by that DID
+alone.
 
 ## Resource Log Profile {#resource-log-profile}
 
@@ -2096,9 +2243,9 @@ format identifier.
 This document depends on the profile at one point: an [=enrolled client=]
 is entitled to append to a resource log because its key is listed under
 `assertionMethod` in the account's [=controller document=], per the
-external-authorization rule of [[WAS-EC]]. An [=application=] never reads
-or appends to these logs; it verifies the response presentation
-([[[#response-verification]]]) and invokes its capabilities.
+external-authorization rule of [[WAS-EC]]. A [=requester=] never reads
+or appends to these logs. It invokes its capabilities, and an [=application=]
+first verifies the response presentation ([[[#response-verification]]]).
 
 ## Security Considerations {#security}
 
@@ -2113,7 +2260,7 @@ The [=app-key credential=]'s `origin` claim is what prevents one origin from
 recovering another's application identity. Its value comes from the [=CHAPI=]
 mediator, which is part of the browser-mediated transport and reports the
 origin that actually opened the request -- not from the request body, which the
-requesting party controls entirely.
+[=requester=] controls entirely.
 
 Binding is enforced on both sides ([[[#app-key-binding]]]). The wallet-side
 check is what makes phishing fail: an attacker who convinces a user to approve
@@ -2246,7 +2393,7 @@ it would matter, since an entry left with no actions after capping is
 Together they are what makes the vocabulary extensible without a version
 negotiation. A new descriptor type can be deployed knowing that every wallet
 which does not implement it will say so visibly, and that no wallet will
-approximate it. The concrete hazard being avoided is an application that
+approximate it. The concrete hazard being avoided is a requester that
 believes it has a public collection, or a decryptable share, and does not.
 
 ### Replay protection {#security-replay}
@@ -2288,16 +2435,16 @@ This property holds by construction rather than by normative requirement: the
 wallet names the controller itself, deriving it from a per-user seed
 ([[[#delegation-target]]]).
 
-Some applications connect through a channel outside this profile and name
+Some requesters connect through a channel outside this profile and name
 their own `controller` (for example, via a standalone
-`AuthorizationCapabilityQuery` [[VCALM]]). Such an application SHOULD NOT use
+`AuthorizationCapabilityQuery` [[VCALM]]). Such a requester SHOULD NOT use
 the same grantee DID across users. Reusing one DID recreates both exposures
 above: the storage provider can link every user who granted to it, and one
 compromised key opens every user's read axis at once. A wallet only ever sees
 one user's view, so it cannot detect the reuse. This is an expectation of
-application authors, not an enforceable rule. It is a SHOULD because a static
+requester authors, not an enforceable rule. It is a SHOULD because a static
 grantee DID remains a defensible choice for some
-application shapes (a single-tenant backend service, for example).
+requester shapes (a single-tenant backend service, for example).
 
 ### The origin claim {#privacy-origin}
 
@@ -2325,7 +2472,12 @@ can observe collection names, request timing, and volumes. It cannot tell an
 App Connect grant from any other delegated capability, and the controller DID
 it sees is per-user, so it does not identify the application.
 
-Collection **names** are the notable exception to that last point: an
-application requests collections by name, and the names it chooses are visible
-to the storage provider. An application SHOULD choose collection names that do
+Collection **names** are the notable exception to that last point: a
+requester asks for collections by name, and the names it chooses are visible
+to the storage provider. A requester SHOULD choose collection names that do
 not disclose more than necessary.
+
+The server learns more from a collection provisioned under
+`#plaintext-collection` ([[[#descriptor-plaintext-collection]]]). It stores
+that collection's contents in plaintext, so it can read everything written
+there. It still serves those contents to no one without a capability.

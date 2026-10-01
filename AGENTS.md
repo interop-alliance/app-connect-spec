@@ -142,6 +142,29 @@ description's annex entry or publishes a ladder VM); dcw (it signs up no
 ladder-anchored account); was-conformance-suite (no suite covers the
 profile yet; filed there as PWSCS-14).
 
+**2026-09-30, the `https://w3id.org/byoe#plaintext-collection` descriptor
+type.** Shipped here as spec text: the registry row, its subsection, the
+consent rule, and the encrypted-by-default carve-out. The code half is
+pending and tracked as freewallet's FW-609: wallet-request (the descriptor
+vocabulary), was-react (the request builder), freewallet (`resolveTarget` in
+`src/lib/walletRequest/processZcaps.ts` and the interaction-URL page's
+allowed classes), and dcw. unaffected: was-teaching-server (it already
+serves plaintext collections and cannot tell this grant from any other
+delegation); byoe-react-examples and life-advisor (they request no such
+collection until was-react exposes the type); was-conformance-suite (no App
+Connect suite, and the server surface is unchanged).
+
+**2026-09-30, the VPR-root `agent` member.** The spec now defines `agent: {
+name }`, which already shipped. wallet-request validates it
+(`requestingAgentOf` and `normalizeAgentName` in `src/classify.ts`) and
+composes it (`composeCapabilityRequest` in `src/capabilityRequest.ts`).
+freewallet refuses a malformed one before consent and shows it on the
+interaction-URL page beside the grantee DID. dcw reaches the same validation
+through wallet-request's `processRequest`. unaffected: was-react,
+byoe-react-examples, and life-advisor (App Connect requests carry `app.name`
+and send no `agent`); was-teaching-server and was-conformance-suite (the
+member never reaches the server).
+
 ## Ecosystem conventions
 
 - Cross-repo lessons (invariants, gotchas, and process recipes that span
