@@ -1,14 +1,14 @@
 <div class="remove">
 
-# App Connect for Wallet Attached Storage v0.1
+# App Connect for Portable Web Spaces v0.1
 
 **Abstract:** App Connect defines a CHAPI/VCALM profile by which a web
-application connects to a Wallet Attached Storage (WAS) backed wallet in a
+application connects to a Portable Web Spaces (PWS) backed wallet in a
 single exchange, receiving a per-user application identity and a set of
 delegated storage capabilities in one signed response.
 
 **Status:** Experimental W3C CCG draft, undergoing regular revisions.
-Companion document to the Wallet Attached Storage specification.
+Companion document to the Portable Web Spaces specification.
 
 </div>
 
@@ -20,7 +20,7 @@ This section is non-normative.
 
 An application that wants a place to keep a user's data has traditionally had
 to run a backend to keep it in. App Connect exists so that it does not have
-to: the user already has storage (a WAS [=Space=]) and already has a wallet
+to: the user already has storage (a PWS [=Space=]) and already has a wallet
 that controls it, so the application asks the wallet for the two things it
 needs -- an identity of its own, and permission to write into a corner of the
 user's storage -- and then talks to the storage server directly.
@@ -59,7 +59,7 @@ This document defines:
 * the grant resolution, capping, and provisioning rules
   ([[[#grants]]]);
 * the point at which this profile depends on the [=resource log=] of
-  [[WAS-EC]]: enrolled clients authorize appends per its
+  [[PWS-EC]]: enrolled clients authorize appends per its
   external-authorization rule ([[[#resource-log-profile]]]).
 
 The descriptor vocabulary and the grant rules speak of the [=requester=], the
@@ -71,13 +71,13 @@ text about them speaks of the [=application=].
 This document does **not** define:
 
 * **the storage protocol.** Spaces, Collections, Resources, the HTTP API, and
-  the capability authorization profile are defined in [[WAS]]. App Connect
-  produces capabilities; invoking them is [[WAS]]'s business.
+  the capability authorization profile are defined in [[PWS]]. App Connect
+  produces capabilities; invoking them is [[PWS]]'s business.
 * **envelope cryptography.** How a collection's contents are encrypted, how a
   key epoch is minted, and how a recipient key is derived byte-for-byte from a
-  controller DID are defined in the forthcoming WAS Encrypted Collections
-  profile [[WAS-EC]]. This document states the *invariants* that the App
-  Connect exchange depends on and references [[WAS-EC]] for the constructions.
+  controller DID are defined in the forthcoming PWS Encrypted Collections
+  profile [[PWS-EC]]. This document states the *invariants* that the App
+  Connect exchange depends on and references [[PWS-EC]] for the constructions.
 * **the wallet account's own identity ceremonies.** How a wallet enrolls a new
   client of the same account, revokes one, or recovers from a lost secret is
   wallet-internal and outside this profile.
@@ -96,7 +96,7 @@ The profile rests on two invariants instead:
    minted, and to nothing else.
 2. **Grants verify under the server's controller resolution.** Whether a
    delegated capability is valid at invocation time is decided by the storage
-   server resolving the Space controller, per [[WAS]]. App Connect neither
+   server resolving the Space controller, per [[PWS]]. App Connect neither
    duplicates nor constrains that decision.
 
 A wallet may therefore change its account identity model without changing
@@ -106,11 +106,11 @@ anything an application sees.
 
 | Document | Relationship |
 |----------|--------------|
-| [[WAS]] | Defines the Space / Collection / Resource model, the HTTP API, and the capability authorization profile whose delegations this profile produces. |
-| [[WAS-EC]] | Companion profile (draft). Defines the encrypted-collection construction: key epochs, roster recipients, envelope format, and the derivation of a recipient key from a controller DID. This profile defers to it for the recipient-key derivation ([[[#recipient-derivation]]]), the key-agreement half of the application's key material ([[[#key-derivation]]]), the epoch rotation behind forward-only re-grants ([[[#descriptor-shared-wallet-collection]]]), and the definition of [=epoch-roster recipient=] itself, and the [=resource log=] profile under which [=enrolled clients=] co-manage key resources ([[[#resource-log-profile]]]). |
+| [[PWS]] | Defines the Space / Collection / Resource model, the HTTP API, and the capability authorization profile whose delegations this profile produces. |
+| [[PWS-EC]] | Companion profile (draft). Defines the encrypted-collection construction: key epochs, roster recipients, envelope format, and the derivation of a recipient key from a controller DID. This profile defers to it for the recipient-key derivation ([[[#recipient-derivation]]]), the key-agreement half of the application's key material ([[[#key-derivation]]]), the epoch rotation behind forward-only re-grants ([[[#descriptor-shared-wallet-collection]]]), and the definition of [=epoch-roster recipient=] itself, and the [=resource log=] profile under which [=enrolled clients=] co-manage key resources ([[[#resource-log-profile]]]). |
 | [[VCALM]] | Defines verifiable presentation requests and their query types: the request body that carries an [=AppConnectQuery=], the `DIDAuthentication` and `QueryByExample` query types this profile interacts with, and `AuthorizationCapabilityQuery`, the standalone capability-request query type whose entry shape [=AppConnectQuery=] reuses. Some wallets also honor `ZcapQuery` as a legacy spelling of `AuthorizationCapabilityQuery`, on the standalone capability-query channel only; this profile refers to the type by its canonical name throughout. |
 | [[CHAPI]] | The transport for in-browser applications, and the one this profile's normative prose is written against: it supplies the browser-attested requesting origin the [=app-key credential=] is bound to. Non-browser applications carry the same [[VCALM]] request over other transports ([[[#request-transport]]]). |
-| [[DID-WEBVH]] | One method a Space controller's [=controller document=] may be verified under, and the log format the [=resource log=] profile of [[WAS-EC]] is extracted from. Nothing in this document depends on it directly. |
+| [[DID-WEBVH]] | One method a Space controller's [=controller document=] may be verified under, and the log format the [=resource log=] profile of [[PWS-EC]] is extracted from. Nothing in this document depends on it directly. |
 
 ### Conformance Classes {#conformance-classes}
 
@@ -153,14 +153,14 @@ A conformant **[=application=]** MUST:
 **The storage server is deliberately not a party to App Connect.** It does not
 see the [=CHAPI=] exchange, the request, the response presentation, the
 [=seed=], or the consent. It only ever sees the resulting capability
-invocations arriving on its HTTP API, which it authorizes exactly as [[WAS]]
+invocations arriving on its HTTP API, which it authorizes exactly as [[PWS]]
 already specifies. No server-side support is required to deploy App Connect,
 and a server cannot tell an App Connect grant from any other delegated
 capability. This is a design goal; it keeps the exchange a
 matter between the user's wallet and the application, and it keeps the storage
 provider substitutable. The one exception is the [=resource log=] profile
-of [[WAS-EC]], which requires the backend holding the log to support
-[[WAS]]'s optional conditional writes.
+of [[PWS-EC]], which requires the backend holding the log to support
+[[PWS]]'s optional conditional writes.
 </div>
 
 <div class="note">
@@ -201,8 +201,8 @@ value.
 
 <dl class="termlist definitions" data-sort="ascending">
   <dt><dfn data-lt="action|actions|allowedAction">action (allowedAction)</dfn></dt>
-  <dd>See <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#authorization-actions-and-the-root-capability">Authorization
-    Actions and the Root Capability</a> in [[WAS]]. The kind of operation a
+  <dd>See <a href="https://w3c-ccg.github.io/portable-web-spaces-spec/#authorization-actions-and-the-root-capability">Authorization
+    Actions and the Root Capability</a> in [[PWS]]. The kind of operation a
     request performs on a [=target=],
     named by a [=capability=] so it can be authorized. This profile restricts
     [=grants=] to a closed vocabulary of uppercase HTTP
@@ -251,7 +251,7 @@ value.
   <dd>An authorization capability authorizing a set of [=actions=] on a [=target=].
     See the <a
     href="https://interop-alliance.github.io/zcap-developer-guide/">zCap
-    Developer Guide</a> and [[ZCAP]] for the model, and [[WAS]] for the storage
+    Developer Guide</a> and [[ZCAP]] for the model, and [[PWS]] for the storage
     profile of it that this document produces delegations under.</dd>
 
   <dt><dfn data-lt="CHAPI">Credential Handler API (CHAPI)</dfn></dt>
@@ -263,8 +263,8 @@ value.
     over other transports; see [[[#request-transport]]].</dd>
 
   <dt><dfn data-lt="collections|Collection">collection</dfn></dt>
-  <dd>See <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#collections">Collections</a>
-    in [[WAS]]. A namespace and configuration container for Resources
+  <dd>See <a href="https://w3c-ccg.github.io/portable-web-spaces-spec/#collections">Collections</a>
+    in [[PWS]]. A namespace and configuration container for Resources
     within a [=Space=]. Every capability an App Connect response carries is
     scoped to a collection or to the Space itself.</dd>
 
@@ -290,7 +290,7 @@ value.
   <dd>The DID document of the [=Space=]'s controller, resolved and verified
     by the reader independently of the storage server. The source of record
     for which clients are [=enrolled clients=], and the root of authority
-    for every [=resource log=] ([[WAS-EC]]).</dd>
+    for every [=resource log=] ([[PWS-EC]]).</dd>
 
   <dt><dfn data-lt="enrolled clients">enrolled client</dfn></dt>
   <dd>A client of the [=wallet=] account whose verification key is listed in
@@ -311,7 +311,7 @@ value.
     because its key-agreement key is a recipient of that collection's current
     key epoch. Recipiency is the read axis of an encrypted collection, distinct
     from the fetch axis a [=capability=] grants. Defined normatively in
-    [[WAS-EC]]; referenced here only where the App Connect exchange establishes
+    [[PWS-EC]]; referenced here only where the App Connect exchange establishes
     or requires it.</dd>
 
   <dt><dfn data-lt="grants|granted capability">grant</dfn></dt>
@@ -359,14 +359,14 @@ value.
     [[[#agent-member]]]); that name is not evidence of identity.</dd>
 
   <dt><dfn data-lt="resource logs">resource log</dfn></dt>
-  <dd>The hash-linked, externally authorized log format of [[WAS-EC]]
+  <dd>The hash-linked, externally authorized log format of [[PWS-EC]]
     under which key resources are co-managed between a wallet's
     [=enrolled clients=] and the storage server. See
     [[[#resource-log-profile]]].</dd>
 
   <dt><dfn data-lt="Resource|resources">resource</dfn></dt>
-  <dd>See <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#resources-and-blobs">Resources
-    and Blobs</a> in [[WAS]]. The addressable unit of storage inside a
+  <dd>See <a href="https://w3c-ccg.github.io/portable-web-spaces-spec/#resources-and-blobs">Resources
+    and Blobs</a> in [[PWS]]. The addressable unit of storage inside a
     [=collection=].</dd>
 
   <dt><dfn data-lt="seeds">seed</dfn></dt>
@@ -378,15 +378,15 @@ value.
     custodies it; nothing else in the exchange substitutes for it.</dd>
 
   <dt><dfn data-lt="Spaces|Space">space</dfn></dt>
-  <dd>See <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#spaces">Spaces</a>
-    in [[WAS]]. The user-owned top-level container that holds
+  <dd>See <a href="https://w3c-ccg.github.io/portable-web-spaces-spec/#spaces">Spaces</a>
+    in [[PWS]]. The user-owned top-level container that holds
     [=collections=]. Every App Connect [=grant=] resolves to a target inside
     exactly one Space.</dd>
 
   <dt><dfn data-lt="target|invocationTarget|targets">target
     (invocationTarget)</dfn></dt>
-  <dd>See the <a href="https://w3c-ccg.github.io/wallet-attached-storage-spec/#dfn-target">target
-    definition</a> in [[WAS]]. The resource a capability authorizes action on,
+  <dd>See the <a href="https://w3c-ccg.github.io/portable-web-spaces-spec/#dfn-target">target
+    definition</a> in [[PWS]]. The resource a capability authorizes action on,
     as an absolute URL.</dd>
 
   <dt><dfn>unsatisfiable</dfn></dt>
@@ -459,7 +459,7 @@ means the transport or an external registry attests, such as a TLS client
 certificate or a DID published in a trusted registry -- does not need this
 profile's custodial identity model: it can hold its own keys, so the seed
 custody and origin matching this document builds on do not apply to it
-as-is. A profile connecting confidential clients to WAS-backed storage is
+as-is. A profile connecting confidential clients to PWS-backed storage is
 left for a future document.
 </div>
 
@@ -797,7 +797,7 @@ something it cannot fulfill ([[[#consent]]]).
 
 ### The target URL template {#url-template}
 
-Every [=target=] this profile produces is a URL under the [[WAS]] URL template:
+Every [=target=] this profile produces is a URL under the [[PWS]] URL template:
 
 ```
 <host>/space/{space_id}
@@ -861,8 +861,8 @@ contents are readable by anyone on the web without authorization.
 
 * It resolves to `<spaceUrl>/<name>`.
 * The wallet MUST provision it as
-  **[plaintext](https://w3c-ccg.github.io/wallet-attached-storage-spec/#plaintext-collection)**
-  ([[WAS]]). A public collection is never
+  **[plaintext](https://w3c-ccg.github.io/portable-web-spaces-spec/#plaintext-collection)**
+  ([[PWS]]). A public collection is never
   encrypted, and MUST set a collection-level world-readable access policy on
   it. The policy is set by the wallet, which controls the Space; a delegated
   capability could not set it.
@@ -905,8 +905,8 @@ unacceptable.
 #### `#plaintext-collection` {#descriptor-plaintext-collection}
 
 `https://w3id.org/byoe#plaintext-collection` requests a [=collection=] stored
-in [plaintext](https://w3c-ccg.github.io/wallet-attached-storage-spec/#plaintext-collection)
-([[WAS]]) that stays capability-gated. It carries no world-readable access
+in [plaintext](https://w3c-ccg.github.io/portable-web-spaces-spec/#plaintext-collection)
+([[PWS]]) that stays capability-gated. It carries no world-readable access
 policy.
 
 * It resolves to `<spaceUrl>/<name>`.
@@ -980,7 +980,7 @@ fetch.
 
 **A share covers what is already stored.** Adding the grantee to the roster
 escrows every epoch's key to it, not only the current epoch's (the escrow rule
-of [[WAS-EC]]'s roster operations), so the grantee can decrypt the collection's
+of [[PWS-EC]]'s roster operations), so the grantee can decrypt the collection's
 existing contents, not only what is written after the share. A [=wallet=] MUST
 state this on the consent surface ([[[#consent]]]).
 
@@ -991,7 +991,7 @@ revoked. A wallet MUST NOT present a re-grant as forward-only access. Restoring
 access from this point forward only, rather than retroactively, requires
 rotating the collection to a new key epoch and admitting the grantee to that
 epoch alone; the epoch construction that makes this possible is defined in
-[[WAS-EC]].
+[[PWS-EC]].
 
 **Revocation of a share is an explicit act.** A [=wallet=]
 MUST NOT rely on the delegated capability's lifetime as the removal mechanism
@@ -1084,7 +1084,7 @@ message for delivering the refusal to the exchange, so the wallet shows it to
 the user.
 
 <div class="note">
-Rules 2 and 3 refuse rather than rewrite. A [[WAS]] server authorizes a
+Rules 2 and 3 refuse rather than rewrite. A [[PWS]] server authorizes a
 request by matching the capability's target against the request URL's scheme,
 host, port, and path alone: a query string is a request modifier (pagination,
 for instance), not part of the target's identity, and a fragment never
@@ -1299,7 +1299,7 @@ depends on it, and changing any part of it orphans them all.
 
 The application's key-agreement key is the X25519 (Montgomery) twin of this
 same key pair; its byte-level derivation and the recipient identifier built
-from it are defined in [[WAS-EC]]. One key identity answers for both signing
+from it are defined in [[PWS-EC]]. One key identity answers for both signing
 and key agreement.
 
 <div class="note">
@@ -1746,7 +1746,7 @@ At step 5 of [[[#response-verification]]], an [=application=] MUST check that:
 3. every grant's `invocationTarget` is a single non-empty string. A grant
    whose `invocationTarget` is absent, is not a string, or is an array of
    targets MUST be rejected;
-4. every grant's target parses under the [[WAS]] URL template
+4. every grant's target parses under the [[PWS]] URL template
    ([[[#url-template]]]) and is collection-scoped -- that is, it names a
    [=collection=] or a [=resource=] within one. A Space-scoped target, or a
    target naming a reserved sub-endpoint rather than a collection, MUST be
@@ -1762,7 +1762,7 @@ At step 5 of [[[#response-verification]]], an [=application=] MUST check that:
    one of its own collections.
 
 Delegation-chain validity is *not* the application's to check: it is enforced
-by the storage server at invocation time, per [[WAS]]. What the application
+by the storage server at invocation time, per [[PWS]]. What the application
 checks is structure.
 
 <div class="note">
@@ -1984,7 +1984,7 @@ verb, a non-string, or an action a future server version might support, MUST
 be *dropped*. It MUST NOT be passed through into an `allowedAction` array the
 user's root key signs.
 
-`HEAD` is a tolerated read alias, not an action of its own. [[WAS]] authorizes
+`HEAD` is a tolerated read alias, not an action of its own. [[PWS]] authorizes
 a `HEAD` request as a `GET`; this profile includes `HEAD` in every read grant
 and caps it exactly as `GET` is capped, so it never appears in an
 allowed-action set that does not already permit reads.
@@ -2092,7 +2092,7 @@ MUST NOT leave the requester holding an inconsistent set of grants that only
 manual intervention could correct.
 
 The byte-level derivation, the resulting recipient identifier, and the roster
-format are defined in [[WAS-EC]]. This profile states only the invariant and
+format are defined in [[PWS-EC]]. This profile states only the invariant and
 the refusal.
 
 ### Provisioning {#provisioning}
@@ -2233,7 +2233,7 @@ alone.
 The [=resource log=] is the hash-linked log format under which key
 resources (collection encryption descriptors and the key rosters beside
 them) are co-managed between a wallet's [=enrolled clients=] and the
-storage server. It is defined by [[WAS-EC]], beside the state schemas it
+storage server. It is defined by [[PWS-EC]], beside the state schemas it
 governs. That definition covers the log model, the entry format, entry
 hashing and the SCID, the entry proof and its controller versionId, the
 external-authorization rule, chain verification, appending under
@@ -2243,7 +2243,7 @@ format identifier.
 This document depends on the profile at one point: an [=enrolled client=]
 is entitled to append to a resource log because its key is listed under
 `assertionMethod` in the account's [=controller document=], per the
-external-authorization rule of [[WAS-EC]]. A [=requester=] never reads
+external-authorization rule of [[PWS-EC]]. A [=requester=] never reads
 or appends to these logs. It invokes its capabilities, and an [=application=]
 first verifies the response presentation ([[[#response-verification]]]).
 

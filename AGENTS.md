@@ -1,17 +1,17 @@
-# App Connect for Wallet Attached Storage -- Specification
+# App Connect for Portable Web Spaces -- Specification
 
 This repo is the **App Connect** specification, a W3C CCG-style document
 authored in **ReSpec + Markdown**. App Connect is a CHAPI/VCALM profile by
-which a web application connects to a Wallet Attached Storage (WAS)-backed
+which a web application connects to a Portable Web Spaces (PWS, formerly Wallet Attached Storage / WAS)-backed
 wallet in a **single exchange**, obtaining a per-user application identity
 (the app-key credential) and delegated storage capabilities -- so the app can
 use user-owned storage without running a backend.
 
-This is a **companion spec layered on top of [WAS]**
-(the Wallet Attached Storage spec): WAS defines the Space / Collection /
+This is a **companion spec layered on top of [PWS]**
+(the Portable Web Spaces spec, formerly Wallet Attached Storage): PWS defines the Space / Collection /
 Resource storage model, the HTTP API, and the zCap authorization profile; App
 Connect defines how an application *obtains* capabilities into that model. It
-also references the **WAS Encrypted Collections** profile ([WAS-EC], sibling
+also references the **PWS Encrypted Collections** profile ([PWS-EC], sibling
 checkout `../encrypted-collections-spec`) for envelope cryptography and
 recipient-key derivation.
 
@@ -27,7 +27,7 @@ accurate, internally consistent, and renders cleanly in ReSpec.
 - `spec.md` -- the entire normative specification (single file, ~2100 lines).
   This is what you edit 99% of the time.
 - `index.html` -- ReSpec shell. Sets config (`specStatus: "unofficial"`, GitHub
-  repo, xref to `did-core`, and a `localBiblio` for `WAS`, `WAS-EC`, `VCALM`,
+  repo, xref to `did-core`, and a `localBiblio` for `PWS`, `PWS-EC`, `VCALM`,
   `CHAPI`, `ZCAP`, `DID-KEY`, `DID-WEBVH`) and includes `spec.md` via
   `<div data-include="spec.md" data-include-format="markdown">`. The `<h1>`,
   abstract, SotD, and conformance sections live here, not in `spec.md`.
@@ -54,7 +54,7 @@ style:
   list (e.g. `[=app-key credential=]`, `[=AppConnectQuery=]`, `[=grant=]`,
   `[=seed=]`, `[=resource log=]`, `[=Space=]`). Define new terms in the
   `## Terminology` `<dl>` block with `<dfn data-lt="alias|aliases">`.
-- **Bibliography refs:** `[[WAS]]`, `[[WAS-EC]]`, `[[VCALM]]`, `[[CHAPI]]`,
+- **Bibliography refs:** `[[PWS]]`, `[[PWS-EC]]`, `[[VCALM]]`, `[[CHAPI]]`,
   `[[ZCAP]]`, `[[RFC...]]` -- ReSpec auto-resolves these (custom ones via the
   `localBiblio` in `index.html`). Uppercase keys.
 - **Headings map to numbered sections.** `##` = top-level section, `###`/`####`
@@ -86,14 +86,14 @@ The spec's main moving parts, in document order:
   encrypted-by-default collections, lifetimes, consent.
 - **The resource log** -- the hash-linked log format for key resources
   co-managed between a wallet's clients and the storage server -- is defined
-  in [WAS-EC], not here; this spec only cites its external-authorization
+  in [PWS-EC], not here; this spec only cites its external-authorization
   rule for enrolled clients. Do not re-introduce the profile text.
 - **Fail-closed processing** is the extensibility rule throughout: anything
   unrecognized is rejected, not ignored.
 
 Identity-model agnosticism: nothing in App Connect inspects the wallet
 account's own DID method; delegation targets the app-key credential's subject
-DID, and grant validity is the storage server's decision per WAS.
+DID, and grant validity is the storage server's decision per PWS.
 
 Wallet terminology: follow the global `clientId` / `writerId` rules -- never
 "device" for either concept.
@@ -192,8 +192,8 @@ member never reaches the server).
 These are separate repositories. Use them to ground spec prose against real
 behavior -- check with the user before editing anything in them.
 
-- [wallet-attached-storage-spec](https://github.com/w3c-ccg/wallet-attached-storage-spec)
-  -- the WAS spec this profile layers on; its `spec.md` is the source of
+- [portable-web-spaces-spec](https://github.com/w3c-ccg/portable-web-spaces-spec)
+  -- the PWS spec this profile layers on; its `spec.md` is the source of
   truth.
 - [wallet-request](https://github.com/interop-alliance/wallet-request) --
   `@interop/wallet-request`, the library that implements the wallet side of
@@ -209,7 +209,7 @@ behavior -- check with the user before editing anything in them.
   implementation?" checks.
 - [was-client](https://github.com/interop-alliance/was-client) /
   [was-teaching-server](https://github.com/interop-alliance/was-teaching-server)
-  -- reference WAS client and server, for confirming the storage API the
+  -- reference PWS client and server, for confirming the storage API the
   granted capabilities are invoked against.
 - [zcap-developer-guide](https://github.com/interop-alliance/zcap-developer-guide)
   -- how zCaps (delegation, invocation, verification, root-of-trust) actually

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset='utf-8'>
-  <title>App Connect for Wallet Attached Storage</title>
+  <title>App Connect for Portable Web Spaces</title>
   <script src='https://www.w3.org/Tools/respec/respec-w3c' async class='remove'></script>
   <script class='remove'>
     // All config options at https://respec.org/docs/
@@ -17,15 +17,15 @@
       includePermalinks: false,
       xref: ["did-core"],
       localBiblio: {
-        "WAS": {
-          title: "Wallet Attached Storage",
-          href: "https://w3c-ccg.github.io/wallet-attached-storage-spec/",
+        "PWS": {
+          title: "Portable Web Spaces",
+          href: "https://w3c-ccg.github.io/portable-web-spaces-spec/",
           authors: ["Dmitri Zagidulin"],
           publisher: "W3C Credentials Community Group"
         },
-        "WAS-EC": {
-          title: "Encrypted Collections for Wallet Attached Storage",
-          href: "https://interop-alliance.github.io/encrypted-collections-spec/",
+        "PWS-EC": {
+          title: "Encrypted Collections for Portable Web Spaces",
+          href: "https://w3c-ccg.github.io/portable-web-spaces-spec/ec/",
           authors: ["Dmitri Zagidulin"],
           publisher: "W3C Credentials Community Group (proposed work item)"
         },
@@ -59,11 +59,11 @@
     </script>
 </head>
 <body>
-<h1 id="title">App Connect for Wallet Attached Storage v0.1</h1>
+<h1 id="title">App Connect for Portable Web Spaces v0.1</h1>
 <section id='abstract'>
   <p>
     App Connect is a CHAPI/VCALM profile by which a web application connects to a
-    Wallet Attached Storage (WAS)-backed wallet in a single exchange, obtaining
+    Portable Web Spaces (PWS)-backed wallet in a single exchange, obtaining
     a per-user application identity and delegated storage capabilities. It
     defines the <code>AppConnectQuery</code> request, the app-key credential,
     the invocation-target descriptor vocabulary with per-class allowed actions,
