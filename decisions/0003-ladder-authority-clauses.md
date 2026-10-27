@@ -25,6 +25,11 @@
   Resource, from WAS-109 and freewallet FW-525) and predicate 5 (a
   target-exact POST over a delegated management capability, from
   WAS-151) are added. The locked property is restated to cover them.
+  2026-10-26: clause A gains predicate 6 (a replica pull, gated on a
+  replica pointer in the pointed client-annex document) and predicate 7
+  (a maintenance grant on a Space's replicas route). The locked
+  property is restated to cover them, and this list is stated as the
+  canonical text of clause A.
 - Driving work: the public-computer posture redesign for the browser
   wallet -- an account with zero enrolled durable clients is anchored
   by a ladder-derived verification method in its document, and that
@@ -34,7 +39,8 @@
 - Affects: this spec's companion profile (clause A's normative text
   and its fail-open note) and Resource Log Profile (clause B, a new
   subsection beside "The sealing append"); was-teaching-server (the
-  second `inspectCapabilityChain` inspector); wallet-core (the
+  second `inspectCapabilityChain` inspector, and the replicas route
+  that predicate 7 opens to a delegated invocation); wallet-core (the
   resource-log verification and the `ResourceLogLicenseError` class);
   both wallets.
 
@@ -69,14 +75,24 @@ Two normative clauses, one per authority axis.
 Clause A, the delegation axis (server-side, a second
 `inspectCapabilityChain` inspector beside the existing revocation
 one; no verification-library changes). A delegation whose proof VM
-resolves to the ladder VM is admitted iff one of five predicates
+resolves to the ladder VM is admitted iff one of seven predicates
 holds. Every target must be a URL on the server's own origin with no
-query or fragment. Predicates 2 to 5 compare it by exact string
+query or fragment. Predicates 2 to 7 compare it by exact string
 equality against the canonical URL of their shape, so an alternate
 encoding of the same path never passes; predicate 1 checks path
 segments instead. Under the WAS
 v0.5 route table a Space is addressed by its trailing-slash container
 URL. The no-slash form only redirects, and no predicate matches it.
+
+The list below is the canonical text of clause A. The reference
+server's inspector implements it, and that repo's own record of the
+clause is an implementation record that follows this one.
+
+The client-annex profile stays at version `0.1` with seven predicates.
+Predicates 6 and 7 were added before replication shipped. No deployed
+wallet mints either shape, and no reader depends on the five-predicate
+form. A `0.1` host built before them refuses a ladder-signed pull or
+replicas-route grant, which fails closed.
 
 1. Companion-DID controller inside the account Space's items subtree
    (narrowed 2026-09-01, restated 2026-09-27 for the v0.5 route
@@ -199,6 +215,83 @@ URL. The no-slash form only redirects, and no predicate matches it.
    the others refuse an existing id. The predicate widens who signs
    the last link of a grant the account already holds. It reaches no
    Space the account held no management capability on.
+
+6. Replica pull (added 2026-10-26). Four bounds hold together.
+
+   Grantee, by record: the delegation's sole `controller` equals the
+   `serviceEndpoint` of a service entry of type
+   `https://w3id.org/pws#ReplicaServer` (decision 0001) in the
+   client-annex document that the delegator's account document names
+   through its `https://w3id.org/byoe#DelegatedClients` entry. The
+   server resolves and verifies that document out of its own storage,
+   as it does any local did:webvh. Predicate 1 compares the client-annex
+   DID string alone; this predicate resolves the document. `controller`
+   is normalized as in predicate 1, and two or more entries are refused.
+   The string must also parse as a did:webvh whose path is
+   `space:server:id`, a second check on the grantee's shape beside the
+   pointer.
+
+   Target: the `invocationTarget` is the canonical trailing-slash URL
+   of the Space carrying the delegator's log, or of the client-annex
+   auxiliary Space that the same account document names. In each case
+   it is the URL itself today, and its `*` subtree form once the
+   explicit subtree scope marker ships. Under today's attenuation the
+   URL itself covers the Space's changes feed. Once the marker ships, a
+   target without it covers that URL alone.
+
+   Action: `allowedAction` is present, non-empty, and within {GET,
+   HEAD}.
+
+   Parent: the Space's synthesized root.
+
+   This is the pull grant a wallet session signs to a replica server,
+   so the replica server can copy the account Space and the auxiliary
+   Space. It is the first predicate gated on a record rather than on
+   shape alone. The record is the pointer, which a credential's annex
+   rung writes into the annex log before any delegation names the
+   server. For the account-Space target, removing the pointer ends the
+   delegation's validity, and so does a generation swap that does not
+   restate it (decision 0001). For the auxiliary-Space target, the gate
+   does not hold in fact yet. The clause's predicates are alternatives,
+   and predicate 2's second branch admits a GET of a bookkeeping Space
+   to any grantee, with no pointer check. So a GET pull of the
+   auxiliary Space keeps verifying through that branch after the
+   pointer is removed, and revocation at the auxiliary Space is its
+   only stop. A grantee bound on that branch is what makes the
+   auxiliary pull pointer-gated in fact (Revisit Criteria 6). A pull
+   grant an enrolled client signs is not a ladder delegation, and the
+   clause does not bound it.
+
+7. Replicas-route maintenance (added 2026-10-26). The delegation's
+   `invocationTarget` is the Space's replicas container URL
+   (`/space/<S>/replicas`): the URL itself today, and its `*` subtree
+   form once the explicit subtree scope marker ships. Its
+   `allowedAction` is present, non-empty, and within {GET, POST, PUT,
+   DELETE}. Its parent is the Space's synthesized root. No pointer gate
+   applies.
+
+   This is the shape a replica server sees on a promoted replica Space,
+   whose controller is the account did:webvh. A credential-anchored
+   account holds no key that can root-invoke there. So the wallet signs
+   this grant with the ladder VM to the ladder VM's own bare did:key,
+   invokes it as that did:key, and keeps it to minutes. With it the
+   wallet lists, re-registers, replaces a registration's pull
+   capability in place, pauses and clears a pause, and removes a
+   registration.
+
+   The replica server cannot apply a pointer gate. Its copy of the
+   client-annex document lags the source by a pull, and does not exist
+   until the auxiliary Space is copied. The route bounds what the grant
+   reaches instead. A delegated POST admits only a registration whose
+   `fromSpace` is already registered on that Space. The grant can
+   re-register against a source the Space already has, and cannot
+   introduce a new one. A root invocation keeps the unbounded POST. The
+   route refuses removal of the one registration that maps the Space's
+   did:webvh controller, which keeps the account DID resolving on the
+   replica server. A listing exposes pull capabilities, which only
+   their grantee can invoke. On a promoted replica the server checks
+   this predicate, and predicate 3's DELETE, against its own copy of
+   the account log, which advances only by pulls.
 
 Invocation-time bounds (added 2026-09-27; shipped by the reference
 server 2026-09-12 and 2026-09-14). Under v0.5, Update Space Metadata
@@ -334,19 +427,25 @@ browser wallet's FW-134 (log-governed descriptors) and the rule that a
 transient session runs every ceremony a remembered one does.
 
 The locked property across both clauses, restated 2026-09-01,
-2026-09-03, and 2026-09-27: every ladder delegation either needs a
-loud companion entry to resolve and stays inside the account Space's
+2026-09-03, 2026-09-27, and 2026-10-26: every ladder delegation either
+needs a loud companion entry to resolve and stays inside the account Space's
 items subtree; can only write a log or reach a Space declared
 delegated-clients bookkeeping; is a target-exact single-verb DELETE of
 one Space or GET of one Space Metadata object, under a parent the
 account already holds on that Space; is a target-exact GET of one
-Resource; or is a target-exact
+Resource; is a target-exact
 POST under a management capability the Space's own controller granted
-the account. That is a read, a destruction whose account-Space case
+the account; is a read of the account Space or its client-annex Space
+by a server the account's pointed client-annex document names; or is a
+maintenance grant on one Space's replicas route, which can re-register
+only against a source already registered there and cannot remove the
+registration that maps the Space's controller. That is a read, a
+destruction whose account-Space case
 removes the log any record would live in and leaves no reader to
-remediate, or a create that rewrites nothing standing, with
-revocation submission open as noted under predicate 2. No ladder-descended chain rewrites a Space's
-controller, and none deletes a Space unless every ladder-signed link
+remediate, a create that rewrites nothing standing, with
+revocation submission open as noted under predicate 2, or the upkeep
+of a replica's existing registrations. No ladder-descended chain
+rewrites a Space's controller, and none deletes a Space unless every ladder-signed link
 in it is the target-exact DELETE shape for that Space. Every ladder
 roster append carries the version of a loud document event, either an
 inventory-changing one (the "posture-changing" of clause B above) or a
@@ -364,7 +463,18 @@ record") is superseded: a DELETE admitted under predicate 3 leaves no
 record, and that carve-out is the account-deletion design's stated
 trade. A POST admitted under predicate 5 writes no log either. Its
 record is the Space controller's grant of the parent management
-capability, which the wallet's own unlock record carries.
+capability, which the wallet's own unlock record carries. A predicate 6
+pull writes no log at its mint. Its account-Space pull stands only
+while its pointer stands, and the pointer is an annex entry, loud at
+the annex log's grade: capability-gated and mortal, where the account
+log is public and permanent. Its auxiliary-Space pull also verifies
+through predicate 2's second branch, so it outlives the pointer until
+that branch is narrowed. A predicate 7 grant writes no log and rests on no record. It
+acts on a replica, which is never the account's log of record, and a
+credential-anchored account reaches a replica only through its ladder.
+freewallet `decisions/0002` records that no-entry authority, and
+predicate 3's DELETE on a replica Space, as an exception to loudness on
+those terms.
 
 ## Rejected Alternatives
 
@@ -423,6 +533,46 @@ capability, which the wallet's own unlock record carries.
   log would carry a trace. That fails loudness, where the POST shape
   only widens who signs a link. A restore's create-by-id stage waits
   on a bounded create-only shape instead.
+- A sixth predicate with no pointer: any ladder-signed GET on the
+  account Space to a `space:server:id` DID, with no record. A phished
+  credential could copy the whole account to a server of the thief's
+  choosing, and decrypt the copy with the user key the same credential
+  unwraps. That is the silent authority this clause exists to rule out.
+  The other silent read shapes reach one Resource, or the annex, with no
+  listing of the account's collections. This one would reach
+  everything. Rejected 2026-10-24, do-not-reopen while loudness is the
+  model.
+- The per-visit annex VM signing the pull grant as a child of the
+  generation delegation, the way a transient session mints every other
+  grant. It is loud through the visit's annex entry and needs no clause
+  change. It loses on lifetime. The grant's `expires` is bounded by the
+  generation delegation's, a ladder-signed generation delegation dies
+  at the next swap's pointer move, and the per-visit VM stops resolving
+  when its generation is collected. The copy would lapse at every swap,
+  and no restate could save a grant that is itself dead. The adopted
+  pointer is mortal too, but one annex entry repairs its loss, with no
+  re-mint and no re-registration. Rejected 2026-10-24.
+- The auxiliary Space's pull riding predicate 2's bookkeeping branch,
+  which admits a GET on that Space today. The branch has no pointer
+  gate and no grantee bound, and the mint writes no log entry, so the
+  pull would not be loud and would not end with the pointer. Predicate
+  6 covers the auxiliary Space instead, and the branch stays for the
+  generation delegation. Rejected 2026-10-26. The branch still admits a
+  GET pull of the auxiliary Space until it is narrowed (Revisit
+  Criteria 6), so the rejection settles which predicate the wallet's
+  grant is written to, and the pointer gate on that target waits on
+  the narrowing.
+- A pointer gate on predicate 7. The replica server could read the
+  pointer only from its own copy of the client-annex document, which
+  lags the source by a pull and does not exist before the auxiliary
+  Space is copied. Rejected 2026-10-24.
+- An unbounded delegated POST on the replicas route. A phished
+  credential's holder could register, on a promoted replica, a
+  `fromSpace` on its own server that serves the account DID as its
+  controller, since the replica server compares the served controller
+  by string alone. The attacker's tombstones would then apply to the
+  user's copy. Rejected 2026-10-26 in favor of the route's
+  existing-source bound.
 - Hard invocation rejection on clause failure: a behavioral change to
   the policy fallback with no security gain on world-readable
   targets.
@@ -534,6 +684,31 @@ the remedy no longer depends on an enrolled client.
 - Torn-ceremony tails still complete: a late-arriving licensed
   rotation passes because no roster entry carrying its
   posture-changing version exists yet.
+- Predicate 6 costs the source server a did:webvh resolution of the
+  client-annex log out of its own storage. Its verified-document cache
+  revalidates on the log's ETag and re-verifies the whole log from
+  genesis whenever the log moved. On a credential-anchored account the
+  pointed generation gains an entry per transient visit, so the first
+  pull after each visit re-verifies a growing log, once per replica
+  server. Incremental verification from the cached head is a server
+  optimization, not a clause rule.
+- After promotion the replica server checks predicates 3 and 7 against
+  its copy of the account log. A copy that predates a new credential's
+  ladder VM refuses that VM's grants, and a retired ladder keeps its
+  reach on a copy that has not yet pulled the strike. A credential
+  rotation therefore replaces the replica's registration with the
+  departing VM before the strike, and waits until the copy shows the
+  new credential's entry. A recovery spend has no window before its
+  strike, and the freeze it leaves is an accepted gap.
+- Predicate 7 is the second shape-gated predicate added for one
+  transient-session need, beside the record-gated predicate 6 (see
+  Revisit Criteria 5).
+- Removing a replica pointer ends that server's ladder-signed pull of
+  the account Space. It does not end the pull of the auxiliary Space,
+  which predicate 2's second branch still admits with no pointer
+  check. Until that branch is narrowed (Revisit Criteria 6), revocation
+  at the auxiliary Space is the only way to stop that pull. This gap is
+  accepted.
 
 ## Revisit Criteria
 
@@ -562,6 +737,20 @@ Reopen this decision when one or more of the following holds:
    making the server-side inspector redundant.
 4. A profile change lets an account's history log move after
    creation; the own-log derivation then needs a history-aware rule.
+5. A design generalizes predicate 6's record-gated form, so further
+   standing grants reuse it instead of adding predicates. The list
+   grows because a credential-anchored account has no long-lived
+   delegation signer except the ladder, and loudness forbids the ladder
+   silent authority. So every standing grant such an account needs is
+   either a new predicate here or a child of the generation delegation,
+   which dies at the swap. Predicate 6 is the first gated on a record
+   rather than on shape alone. A generalized form would be a new
+   enumerated shape, and predicates 2 to 7 would be re-examined against
+   it rather than loosened in place.
+6. A design narrows predicate 2's second branch, for example with a
+   grantee bound that admits only the client-annex DID. Predicate 6's
+   auxiliary-Space pull then becomes pointer-gated in fact, and the
+   Consequences entry on the auxiliary pull is dropped.
 
 ## Changelog
 
@@ -662,3 +851,24 @@ Reopen this decision when one or more of the following holds:
   withdrawn PUT branch is added to Rejected Alternatives. Driven by
   WAS-151, the transient session's Export Space on a sibling unlock
   Space; shipped in was-teaching-server 0.38.0.
+- 2026-10-26: clause A gains predicate 6, admitting a ladder-signed
+  pull of the account Space or the pointed client-annex Space, GET and
+  HEAD only, off the Space's root, to a server a replica pointer in the
+  pointed client-annex document names. It also gains predicate 7,
+  admitting a ladder-signed grant on a Space's replicas route, off the
+  Space's root, within {GET, POST, PUT, DELETE}, with no pointer gate.
+  Both are widenings, new admitted shapes; read the prior version for
+  the five-predicate clause. The locked property is restated to cover
+  them. Each target is recorded in today's form and in its `*` subtree
+  form once the explicit subtree scope marker ships. The profile stays
+  at `0.1`, since replication has not shipped. This record is stated as
+  the canonical text of clause A. Five rejected alternatives are added.
+  Driven by the design that lets every session kind register a replica
+  server.
+- 2026-10-26: predicate 6's pointer gate is restated as holding in fact
+  for the account-Space target alone. Predicate 2's second branch still
+  admits a GET pull of the auxiliary Space with no pointer, so removing
+  the pointer does not end that pull. The gap is accepted until a later
+  design narrows the branch (Revisit Criteria 6). The locked property's
+  pointer sentence and the predicate 2 rejected alternative are amended
+  to match.
