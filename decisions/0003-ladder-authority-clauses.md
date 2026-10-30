@@ -22,9 +22,9 @@
   shipped inspector. Predicates 1 to 3 are restated for the WAS v0.5
   route table and two invocation-time bounds are added; predicate 2's
   bookkeeping branch gains POST; predicate 4 (a target-exact GET of one
-  Resource, from WAS-109 and freewallet FW-525) and predicate 5 (a
+  Resource, from WSS-109 and freewallet FW-525) and predicate 5 (a
   target-exact POST over a delegated management capability, from
-  WAS-151) are added. The locked property is restated to cover them.
+  WSS-151) are added. The locked property is restated to cover them.
   2026-10-26: clause A gains predicate 6 (a replica pull, gated on a
   replica pointer in the pointed client-annex document) and predicate 7
   (a maintenance grant on a Space's replicas route). The locked
@@ -839,9 +839,9 @@ Reopen this decision when one or more of the following holds:
   `['GET']` delegation of one Resource under a parent on that Resource
   URL or its Space's URL. That is a widening, a new admitted shape;
   read the prior version for the three-predicate clause. The locked
-  property is restated to cover it. Driven by WAS-109 and freewallet
+  property is restated to cover it. Driven by WSS-109 and freewallet
   FW-525, the transient session's read of a sibling unlock Space's
-  keyring record; shipped in was-teaching-server 0.33.0. WAS-109's
+  keyring record; shipped in was-teaching-server 0.33.0. WSS-109's
   close left this amendment to the record's maintainer.
 - 2026-09-27: clause A gains predicate 5, admitting a target-exact
   `['POST']` delegation over a delegated management capability the
@@ -849,7 +849,7 @@ Reopen this decision when one or more of the following holds:
   new admitted shape; read the prior version for the four-predicate
   clause. The locked property is restated to cover it, and the
   withdrawn PUT branch is added to Rejected Alternatives. Driven by
-  WAS-151, the transient session's Export Space on a sibling unlock
+  WSS-151, the transient session's Export Space on a sibling unlock
   Space; shipped in was-teaching-server 0.38.0.
 - 2026-10-26: clause A gains predicate 6, admitting a ladder-signed
   pull of the account Space or the pointed client-annex Space, GET and
