@@ -14,6 +14,17 @@
   did:web projection when the request's `acceptedMethods` asks for one.
   The decision itself is unchanged. See the browser wallet's
   `decisions/0016-didauth-holder-dispatches-on-accepted-methods.md`.
+- Amended: 2026-10-31 -- the holder of an App Connect response is now the
+  wallet's pairwise did:key toward the app, derived from a per-connection
+  seed on the wallet's connection entry, on every session kind. It is still
+  a bare did:key, so the resolvability rule below holds. The consequence
+  "a fresh, unlinkable holder per visit" no longer holds: the holder is
+  stable per connection and changes only when the wallet rotates the seed,
+  which it does in the ceremonies that withdraw a client's or a
+  credential's authority. The response presentation's holder text is
+  rewritten to match. See the browser wallet's
+  `decisions/0052-the-app-connect-holder-is-the-pairwise-connection-did-key.md`
+  and wallet-core's `decisions/0032-pairwise-seed-rotation-and-the-rotate-message.md`.
 - Driving work: the public-computer posture redesign for the browser
   wallet -- a transient visit client, enrolled in the capability-gated
   companion did:webvh, still has to answer an App Connect request with
@@ -87,3 +98,7 @@ Reopen this decision when one or more of the following holds:
   override, closing a drift in which a remembered session against a KMS
   deployment presented a did:web holder, and that its holder outside
   App Connect dispatches on `acceptedMethods`.
+- 2026-10-31: the holder moved from the transient key's bare did:key to the
+  wallet's pairwise did:key toward the app. Still a bare did:key; the
+  resolvability decision stands, the per-visit unlinkability consequence is
+  reversed.
