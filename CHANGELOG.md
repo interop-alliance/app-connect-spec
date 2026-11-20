@@ -19,6 +19,9 @@
   receives them.
 
 ### Changed
+- The action vocabulary is `GET`, `POST`, `PUT`, `DELETE`. `HEAD` is not an
+  action. A `HEAD` request is authorized as a `GET`. A wallet drops a requested
+  `HEAD` and does not write it into `allowedAction`.
 - "Encrypted by default" now covers `#private-collection` and states the
   plaintext exceptions.
 - Provisioning states the form each collection descriptor type provisions,

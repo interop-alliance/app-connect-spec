@@ -728,7 +728,7 @@ grants by ([[[#reference-id]]]).
       "capabilityQuery": [
         {
           "referenceId": "notes",
-          "allowedAction": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+          "allowedAction": ["GET", "PUT", "POST", "DELETE"],
           "invocationTarget": {
             "type": "https://w3id.org/byoe#private-collection",
             "name": "notes"
@@ -736,7 +736,7 @@ grants by ([[[#reference-id]]]).
         },
         {
           "referenceId": "published-notes",
-          "allowedAction": ["GET", "HEAD", "POST"],
+          "allowedAction": ["GET", "POST"],
           "invocationTarget": {
             "type": "https://w3id.org/byoe#public-collection",
             "name": "published-notes"
@@ -744,7 +744,7 @@ grants by ([[[#reference-id]]]).
         },
         {
           "referenceId": "contacts",
-          "allowedAction": ["GET", "HEAD"],
+          "allowedAction": ["GET"],
           "invocationTarget": {
             "type": "https://w3id.org/byoe#shared-wallet-collection",
             "name": "contacts"
@@ -825,12 +825,12 @@ rules in [[[#string-targets]]], assume `/space/` sits directly under the host.
 
 This registry is normative. The following descriptor types are defined.
 
-| Type IRI                                         | `name`   | Resolves to         | Allowed actions                        |
-|--------------------------------------------------|----------|---------------------|----------------------------------------|
-| `https://w3id.org/byoe#private-collection`       | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
-| `https://w3id.org/byoe#public-collection`        | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
-| `https://w3id.org/byoe#plaintext-collection`     | required | `<spaceUrl>/<name>` | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
-| `https://w3id.org/byoe#shared-wallet-collection` | required | `<spaceUrl>/<name>` | `GET`, `HEAD`                          |
+| Type IRI                                         | `name`   | Resolves to         | Allowed actions                |
+|--------------------------------------------------|----------|---------------------|--------------------------------|
+| `https://w3id.org/byoe#private-collection`       | required | `<spaceUrl>/<name>` | `GET`, `POST`, `PUT`, `DELETE` |
+| `https://w3id.org/byoe#public-collection`        | required | `<spaceUrl>/<name>` | `GET`, `POST`, `PUT`, `DELETE` |
+| `https://w3id.org/byoe#plaintext-collection`     | required | `<spaceUrl>/<name>` | `GET`, `POST`, `PUT`, `DELETE` |
+| `https://w3id.org/byoe#shared-wallet-collection` | required | `<spaceUrl>/<name>` | `GET`                          |
 
 Where `name` is required, a [=wallet=] MUST validate it against the collection
 name grammar ([[[#collection-name-grammar]]]) and MUST resolve the descriptor
@@ -956,11 +956,9 @@ to an encrypted collection the wallet already owns.
   collections the wallet owns and encrypts, that lookup subsumes the collection
   name grammar check ([[[#collection-name-grammar]]]) for this descriptor type:
   a name that fails the grammar cannot be in the set.
-* Its granted actions are exactly the class's allowed actions, `GET` and `HEAD`
+* Its granted action is exactly the class's allowed action, `GET`
   ([[[#allowed-actions]]]) -- not an intersection with what was requested. A
-  share is never a write grant, and `HEAD` rides every read grant
-  ([[[#action-vocabulary]]]), so a share that asked for a narrower subset still
-  receives both.
+  share is never a write grant.
 * **The two axes are fused.** Satisfying a share means granting *both* the
   read-only [=capability=] (the fetch axis) *and* [=epoch-roster recipient=]
   status for the collection's current epoch (the decrypt axis). A [=wallet=]
@@ -1781,11 +1779,11 @@ The actions an [=application=] requires of a collection MUST be within the
 allowed actions of the descriptor class it used to request that collection
 ([[[#allowed-actions]]]):
 
-| Requested via           | Actions the application may require                  |
-|-------------------------|------------------------------------------------------|
-| `#private-collection`   | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
-| `#public-collection`    | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
-| `#plaintext-collection` | any subset of `GET`, `HEAD`, `POST`, `PUT`, `DELETE` |
+| Requested via           | Actions the application may require          |
+|-------------------------|----------------------------------------------|
+| `#private-collection`   | any subset of `GET`, `POST`, `PUT`, `DELETE` |
+| `#public-collection`    | any subset of `GET`, `POST`, `PUT`, `DELETE` |
+| `#plaintext-collection` | any subset of `GET`, `POST`, `PUT`, `DELETE` |
 
 An application MUST NOT require an action outside the allowed actions of the
 class it requested, and MUST NOT fail a connection because a grant lacks such an
@@ -1869,7 +1867,7 @@ identity and no grants while believing itself connected.
       "parentCapability": "urn:zcap:root:https%3A%2F%2Fwallet-storage.example%2Fspace%2F81246131-69a4-45ab-9bff-9c946b59cf2e",
       "invocationTarget": "https://wallet-storage.example/space/81246131-69a4-45ab-9bff-9c946b59cf2e/notes",
       "controller": "did:key:z6MkExampleNotesAppKeySubjectDidPlaceholder",
-      "allowedAction": ["GET", "HEAD", "POST", "PUT", "DELETE"],
+      "allowedAction": ["GET", "POST", "PUT", "DELETE"],
       "expires": "2026-08-13T14:22:11Z",
       "proof": { "...": "..." }
     },
@@ -1879,7 +1877,7 @@ identity and no grants while believing itself connected.
       "parentCapability": "urn:zcap:root:https%3A%2F%2Fwallet-storage.example%2Fspace%2F81246131-69a4-45ab-9bff-9c946b59cf2e",
       "invocationTarget": "https://wallet-storage.example/space/81246131-69a4-45ab-9bff-9c946b59cf2e/published-notes",
       "controller": "did:key:z6MkExampleNotesAppKeySubjectDidPlaceholder",
-      "allowedAction": ["GET", "HEAD", "POST"],
+      "allowedAction": ["GET", "POST"],
       "expires": "2026-08-13T14:22:11Z",
       "proof": { "...": "..." }
     }
@@ -1969,13 +1967,13 @@ are explicitly not the removal mechanism, least of all for shares.
 
 ### The action vocabulary {#action-vocabulary}
 
-The action vocabulary is closed: the five tokens below are the only actions
+The action vocabulary is closed: the four tokens below are the only actions
 this profile recognizes, and the set is not extensible by request. No
 mechanism in this profile lets a requester, a wallet, or a future
 descriptor class introduce an action outside it.
 
 ```
-GET, HEAD, POST, PUT, DELETE
+GET, POST, PUT, DELETE
 ```
 
 A [=wallet=] MUST normalize each requested action by trimming it, upper-casing
@@ -1984,10 +1982,10 @@ verb, a non-string, or an action a future server version might support, MUST
 be *dropped*. It MUST NOT be passed through into an `allowedAction` array the
 user's root key signs.
 
-`HEAD` is a tolerated read alias, not an action of its own. [[PWS]] authorizes
-a `HEAD` request as a `GET`; this profile includes `HEAD` in every read grant
-and caps it exactly as `GET` is capped, so it never appears in an
-allowed-action set that does not already permit reads.
+`HEAD` is not an action. [[PWS]] authorizes a `HEAD` request as a `GET`, so a
+`GET` grant covers it. A wallet's normalization drops a requested `HEAD` like
+any other token outside the set. A wallet MUST NOT write `HEAD` into an
+`allowedAction` array.
 
 <div class="note">
 Dropping unknown action tokens is the same fail-closed treatment an
@@ -2005,12 +2003,12 @@ request asks for.
 
 This table is normative.
 
-| Target class         | Allowed actions                        | Rationale                                                                                                  |
-|----------------------|----------------------------------------|------------------------------------------------------------------------------------------------------------|
-| protected collection | `GET`, `HEAD`                          | A requester may read the user's own data on consent; it may never rewrite or delete it.                    |
-| share                | `GET`, `HEAD`                          | A share hands over decryption as well as fetch; it is never a write grant.                                 |
-| public collection    | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The requester's own published data; un-publishing and revision are data management like any other write.   |
-| collection           | `GET`, `HEAD`, `POST`, `PUT`, `DELETE` | The requester's own data, bounded by consent and by the shorter write lifetime.                            |
+| Target class         | Allowed actions                | Rationale                                                                                                |
+|----------------------|--------------------------------|----------------------------------------------------------------------------------------------------------|
+| protected collection | `GET`                          | A requester may read the user's own data on consent; it may never rewrite or delete it.                  |
+| share                | `GET`                          | A share hands over decryption as well as fetch; it is never a write grant.                               |
+| public collection    | `GET`, `POST`, `PUT`, `DELETE` | The requester's own published data; un-publishing and revision are data management like any other write. |
+| collection           | `GET`, `POST`, `PUT`, `DELETE` | The requester's own data, bounded by consent and by the shorter write lifetime.                          |
 
 A `#plaintext-collection` target resolves in the *collection* class, as a
 `#private-collection` target does. Whether a collection is encrypted changes
@@ -2162,7 +2160,7 @@ A [=wallet=] SHOULD differentiate lifetimes by grant kind:
 * a **read-only** grant on a requester's collection SHOULD be the longest of
   the ordinary lifetimes;
 * a **write-bearing** grant -- one whose capped actions include anything beyond
-  `GET` and `HEAD` -- SHOULD be shorter, since a leaked write grant can mutate
+  `GET` -- SHOULD be shorter, since a leaked write grant can mutate
   data;
 * a **share** grant SHOULD be long, for the reason given below.
 
