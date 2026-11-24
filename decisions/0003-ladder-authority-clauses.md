@@ -29,7 +29,10 @@
   replica pointer in the pointed client-annex document) and predicate 7
   (a maintenance grant on a Space's replicas route). The locked
   property is restated to cover them, and this list is stated as the
-  canonical text of clause A.
+  canonical text of clause A. 2026-11-23: clause B's shapes 2 and 3
+  license a rotation carrying a version at or after an unspent licensed
+  version. They used to require the carried version to be the licensed
+  one itself.
 - Driving work: the public-computer posture redesign for the browser
   wallet -- an account with zero enrolled durable clients is anchored
   by a ladder-derived verification method in its document, and that
@@ -393,6 +396,39 @@ ladder-signed roster append is accepted in exactly three shapes:
    `@interop/vh-resource-log` library. The encrypted-collections-spec
    parties table is walked beside this spec's, that profile being the
    Resource Log Profile's home.
+
+Amended 2026-11-23: the carried version may follow the licensed one.
+Call a version licensed for a ladder when it meets shape 2's
+posture-changing test, or shape 3's test for that ladder. A
+ladder-signed rotation carrying version V is accepted when some licensed
+version W lies at or before V and after the version the verified roster
+head carries. When the roster holds no versioned entry, any licensed W
+at or before V serves. Shape 3's signer conjunct is evaluated at W. The
+single-ladder-proof refinement is unchanged.
+
+The count of appends is unchanged. An accepted entry carries V, so every
+licensed version at or before V is spent together, and the next
+ladder-signed rotation needs a licensed version after V. A rotation with
+no unspent licensed version at or before the version it carries is still
+the silent-rekey shape, and is still refused.
+
+The earlier text required V itself to be the licensed version. A torn
+ceremony could then be left unable to finish. Its licensed entry stood,
+its roster append had not landed, and a later document version that
+changed neither set had become the head. The completing append had to
+carry the licensed version, which its writer had not last verified. The
+Resource Log Profile says a writer carries the controller head it last
+verified. Under this amendment the writer carries that head. The entry
+verifies against the key set of V and seals the log through V, where an
+entry carrying the earlier W would seal it only through W. A ladder VM
+struck between W and V cannot sign such an entry, since the strike is
+itself the newest licensed version and the VM is absent from V.
+
+This is a verifier-side rule, as shape 3 is. A reader without it refuses
+the whole roster log once such an entry exists. Rollout is verifier-first,
+over the same readers shape 3 names. The driving work was the browser
+wallet's design for completing a recovery-code spend torn inside its
+roster append.
 
 Everything else -- above all a rotation against an unchanged
 document, the silent-rekey shape -- is refused by every verifier.
