@@ -398,17 +398,21 @@ ladder-signed roster append is accepted in exactly three shapes:
    Resource Log Profile's home.
 
 Amended 2026-11-23: the carried version may follow the licensed one.
-Call a version licensed for a ladder when it meets shape 2's
-posture-changing test, or shape 3's test for that ladder. A
-ladder-signed rotation carrying version V is accepted when some licensed
-version W lies at or before V and after the version the verified roster
-head carries. When the roster holds no versioned entry, any licensed W
-at or before V serves. Shape 3's signer conjunct is evaluated at W. The
-single-ladder-proof refinement is unchanged.
+Call a version W licensed for a ladder L when it meets shape 2's
+posture-changing test, or shape 3's test for L. Shape 3's test is read
+entirely at W: the two client sets, the rungs the log attributes to L,
+and the signers of W's own entry. A ladder-signed rotation carrying
+version V is accepted when some version W licensed for the appending
+ladder lies at or before V and after the version the verified roster
+head carries. The appending ladder is the ladder VM, as listed at V,
+whose key signs the entry. A version licensed for another ladder alone
+does not serve. The single-ladder-proof refinement is unchanged and is
+counted at V. A roster's first entry always carries a version, and that
+version is the head for the next entry.
 
 The count of appends is unchanged. An accepted entry carries V, so every
-licensed version at or before V is spent together, and the next
-ladder-signed rotation needs a licensed version after V. A rotation with
+licensed version at or before V is spent together, for every ladder, and
+the next ladder-signed rotation needs a licensed version after V. A rotation with
 no unspent licensed version at or before the version it carries is still
 the silent-rekey shape, and is still refused.
 
@@ -421,8 +425,10 @@ Resource Log Profile says a writer carries the controller head it last
 verified. Under this amendment the writer carries that head. The entry
 verifies against the key set of V and seals the log through V, where an
 entry carrying the earlier W would seal it only through W. A ladder VM
-struck between W and V cannot sign such an entry, since the strike is
-itself the newest licensed version and the VM is absent from V.
+struck between W and V cannot sign such an entry, since the VM is absent
+from the key set of V. It can still sign one carrying a version before
+its strike, as before this amendment, until a roster entry carries the
+strike.
 
 This is a verifier-side rule, as shape 3 is. A reader without it refuses
 the whole roster log once such an entry exists. Rollout is verifier-first,
@@ -483,9 +489,10 @@ revocation submission open as noted under predicate 2, or the upkeep
 of a replica's existing registrations. No ladder-descended chain
 rewrites a Space's controller, and none deletes a Space unless every ladder-signed link
 in it is the target-exact DELETE shape for that Space. Every ladder
-roster append carries the version of a loud document event, either an
-inventory-changing one (the "posture-changing" of clause B above) or a
-change to the enrolled-client set that the same ladder signed. A
+roster append carries a version at or after an unspent loud document
+event, either an inventory-changing one (the "posture-changing" of
+clause B above) or a change to the enrolled-client set that the same
+ladder signed. That event's version is a licensed version. A
 ladder-signed append to a per-collection descriptor log is outside
 this property and stands on `assertionMethod` membership alone, per
 the scope paragraph above. Predicate 1's target bound closes one gap
